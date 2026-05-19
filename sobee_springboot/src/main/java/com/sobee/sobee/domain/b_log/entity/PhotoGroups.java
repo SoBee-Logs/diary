@@ -19,7 +19,4 @@ public class PhotoGroups {
     @MapsId("photoId")
     @JoinColumn(name = "photo_id")
     private Photo photo;
-
-    @Column(name = "group_id", insertable = false, updatable = false)
-    private Long groupId;
 }

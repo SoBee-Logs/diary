@@ -13,8 +13,12 @@ import lombok.*;
 public class EmotionsText {
 
     @Id
+    @Column(name = "photo_id")
+    private Long photoId;
+
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "photo_id", nullable = false)
+    @MapsId
+    @JoinColumn(name = "photo_id")
     private Photo photo;
 
     @Column(name = "text", length = 100)
