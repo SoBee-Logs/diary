@@ -49,3 +49,5 @@ logs/
 
 ### Crash logs ###
 *.stackdump
+
+src/main/resources/application.yaml
