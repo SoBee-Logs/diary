@@ -55,15 +55,15 @@ body {
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
+  width: 100%;
+  max-width: 375px;
   margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
+  text-align: left;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  background: #f3f4f6;
 }
 
 h1,
@@ -111,3 +111,30 @@ code {
 }
 
 @import "tailwindcss";
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes avatar-drift {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-marquee {
+  animation: marquee 8s linear infinite;
+}
+
+.animate-avatar-drift {
+  animation: avatar-drift 6s linear infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}
