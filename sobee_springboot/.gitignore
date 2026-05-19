@@ -35,3 +35,17 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### MacOS ###
+.DS_Store
+
+### Windows ###
+Thumbs.db
+desktop.ini
+
+### Logs ###
+*.log
+logs/
+
+### Crash logs ###
+*.stackdump
