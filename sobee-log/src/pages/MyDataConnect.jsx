@@ -41,13 +41,9 @@ const CARDS = [
   { code: "0321", name: "제주카드" },
 ];
 
-const ALL = [...BANKS, ...CARDS];
-
 function MyDataConnect() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
   const [selected, setSelected] = useState([]);
-  const [credentials, setCredentials] = useState({});
   const [loading, setLoading] = useState(false);
 
   const toggleSelect = (code) => {
@@ -58,33 +54,12 @@ function MyDataConnect() {
     }
   };
 
-  const handleNext = () => {
-    if (selected.length === 0) return alert("최소 1개 이상 선택해주세요!");
-    const init = {};
-    selected.forEach((code) => {
-      init[code] = { user_id: "", password: "" };
-    });
-    setCredentials(init);
-    setStep(2);
-  };
-
-  const handleCredentialChange = (code, field, value) => {
-    setCredentials({
-      ...credentials,
-      [code]: { ...credentials[code], [field]: value },
-    });
-  };
-
   const handleConnect = () => {
-    const incomplete = selected.some(
-      (code) => !credentials[code]?.user_id || !credentials[code]?.password
-    );
-    if (incomplete) return alert("모든 기관의 아이디와 비밀번호를 입력해주세요!");
-
+    if (selected.length === 0) return alert("최소 1개 이상 선택해주세요!");
     setLoading(true);
     setTimeout(() => {
-      navigate("/login");
-    }, 2500);
+      navigate("/home");
+    }, 2000);
   };
 
   if (loading) {
@@ -95,7 +70,7 @@ function MyDataConnect() {
         alignItems: "center",
         justifyContent: "center",
         height: "100vh",
-        backgroundColor: "#F0F8FF",
+        backgroundColor: "white",
       }}>
         <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "8px", color: "#0083CA" }}>So-Bee</h2>
         <p style={{ color: "#20C4F4", fontSize: "13px", marginBottom: "32px" }}>스마트 소비 일기</p>
@@ -114,73 +89,6 @@ function MyDataConnect() {
     );
   }
 
-  if (step === 1) {
-    return (
-      <div style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: "40px 20px",
-        minHeight: "100vh",
-        backgroundColor: "#ffffff",
-      }}>
-        <h1 style={{ fontSize: "36px", fontWeight: "bold", marginBottom: "8px", color: "#0083CA", letterSpacing: "3px" }}>So-Bee</h1>
-        <p style={{ color: "#20C4F4", fontSize: "13px", marginBottom: "8px" }}>마이데이터 연동</p>
-        <p style={{ color: "#888", fontSize: "12px", marginBottom: "24px" }}>연동할 기관을 선택하세요 (여러 개 가능)</p>
-
-        <p style={{ fontWeight: "bold", marginBottom: "8px", alignSelf: "flex-start", maxWidth: "300px", width: "100%", color: "#0083CA" }}>은행</p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", width: "100%", maxWidth: "300px", marginBottom: "20px" }}>
-          {BANKS.map((bank) => (
-            <button
-              key={bank.code}
-              onClick={() => toggleSelect(bank.code)}
-              style={{
-                padding: "8px 12px",
-                borderRadius: "8px",
-                border: selected.includes(bank.code) ? "2px solid #0083CA" : "1px solid #ddd",
-                backgroundColor: selected.includes(bank.code) ? "#E8F4FD" : "white",
-                fontWeight: selected.includes(bank.code) ? "bold" : "normal",
-                color: selected.includes(bank.code) ? "#0083CA" : "#555",
-                cursor: "pointer",
-                fontSize: "12px",
-              }}
-            >{bank.name}</button>
-          ))}
-        </div>
-
-        <p style={{ fontWeight: "bold", marginBottom: "8px", alignSelf: "flex-start", maxWidth: "300px", width: "100%", color: "#0083CA" }}>카드사</p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", width: "100%", maxWidth: "300px", marginBottom: "32px" }}>
-          {CARDS.map((card) => (
-            <button
-              key={card.code}
-              onClick={() => toggleSelect(card.code)}
-              style={{
-                padding: "8px 12px",
-                borderRadius: "8px",
-                border: selected.includes(card.code) ? "2px solid #0083CA" : "1px solid #ddd",
-                backgroundColor: selected.includes(card.code) ? "#E8F4FD" : "white",
-                fontWeight: selected.includes(card.code) ? "bold" : "normal",
-                color: selected.includes(card.code) ? "#0083CA" : "#555",
-                cursor: "pointer",
-                fontSize: "12px",
-              }}
-            >{card.name}</button>
-          ))}
-        </div>
-
-        <button
-          onClick={handleNext}
-          style={{
-            width: "100%", maxWidth: "300px", padding: "14px",
-            backgroundColor: "#0083CA", color: "white",
-            border: "none", borderRadius: "10px",
-            fontSize: "16px", fontWeight: "bold", cursor: "pointer",
-          }}
-        >다음 ({selected.length}개 선택)</button>
-      </div>
-    );
-  }
-
   return (
     <div style={{
       display: "flex",
@@ -188,40 +96,47 @@ function MyDataConnect() {
       alignItems: "center",
       padding: "40px 20px",
       minHeight: "100vh",
-      backgroundColor: "#ffffff",
+      backgroundColor: "white",
     }}>
       <h1 style={{ fontSize: "36px", fontWeight: "bold", marginBottom: "8px", color: "#0083CA", letterSpacing: "3px" }}>So-Bee</h1>
-      <p style={{ color: "#20C4F4", fontSize: "13px", marginBottom: "32px" }}>각 기관의 아이디와 비밀번호를 입력하세요</p>
+      <p style={{ color: "#20C4F4", fontSize: "13px", marginBottom: "8px" }}>마이데이터 연동</p>
+      <p style={{ color: "#888", fontSize: "12px", marginBottom: "24px" }}>연동할 기관을 선택하세요 (여러 개 가능)</p>
 
-      {selected.map((code) => {
-        const institution = ALL.find((i) => i.code === code);
-        return (
-          <div key={code} style={{ width: "100%", maxWidth: "300px", marginBottom: "24px" }}>
-            <p style={{ fontWeight: "bold", marginBottom: "8px", color: "#0083CA" }}>{institution?.name}</p>
-            <input
-              placeholder="아이디"
-              value={credentials[code]?.user_id || ""}
-              onChange={(e) => handleCredentialChange(code, "user_id", e.target.value)}
-              style={{
-                width: "100%", padding: "12px", marginBottom: "8px",
-                borderRadius: "10px", border: "1.5px solid #20C4F4",
-                fontSize: "14px", boxSizing: "border-box", outline: "none",
-              }}
-            />
-            <input
-              placeholder="비밀번호"
-              type="password"
-              value={credentials[code]?.password || ""}
-              onChange={(e) => handleCredentialChange(code, "password", e.target.value)}
-              style={{
-                width: "100%", padding: "12px",
-                borderRadius: "10px", border: "1.5px solid #20C4F4",
-                fontSize: "14px", boxSizing: "border-box", outline: "none",
-              }}
-            />
-          </div>
-        );
-      })}
+      <p style={{ fontWeight: "bold", marginBottom: "8px", alignSelf: "flex-start", maxWidth: "300px", width: "100%", color: "#0083CA" }}>은행</p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", width: "100%", maxWidth: "300px", marginBottom: "20px" }}>
+        {BANKS.map((bank) => (
+          <button
+            key={bank.code}
+            onClick={() => toggleSelect(bank.code)}
+            style={{
+              padding: "8px 12px", borderRadius: "8px",
+              border: selected.includes(bank.code) ? "2px solid #0083CA" : "1px solid #ddd",
+              backgroundColor: selected.includes(bank.code) ? "#E8F4FD" : "white",
+              fontWeight: selected.includes(bank.code) ? "bold" : "normal",
+              color: selected.includes(bank.code) ? "#0083CA" : "#555",
+              cursor: "pointer", fontSize: "12px",
+            }}
+          >{bank.name}</button>
+        ))}
+      </div>
+
+      <p style={{ fontWeight: "bold", marginBottom: "8px", alignSelf: "flex-start", maxWidth: "300px", width: "100%", color: "#0083CA" }}>카드사</p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", width: "100%", maxWidth: "300px", marginBottom: "32px" }}>
+        {CARDS.map((card) => (
+          <button
+            key={card.code}
+            onClick={() => toggleSelect(card.code)}
+            style={{
+              padding: "8px 12px", borderRadius: "8px",
+              border: selected.includes(card.code) ? "2px solid #0083CA" : "1px solid #ddd",
+              backgroundColor: selected.includes(card.code) ? "#E8F4FD" : "white",
+              fontWeight: selected.includes(card.code) ? "bold" : "normal",
+              color: selected.includes(card.code) ? "#0083CA" : "#555",
+              cursor: "pointer", fontSize: "12px",
+            }}
+          >{card.name}</button>
+        ))}
+      </div>
 
       <button
         onClick={handleConnect}
@@ -231,7 +146,7 @@ function MyDataConnect() {
           border: "none", borderRadius: "10px",
           fontSize: "16px", fontWeight: "bold", cursor: "pointer",
         }}
-      >연동하기</button>
+      >마이데이터 연동하기 ({selected.length}개 선택)</button>
     </div>
   );
 }

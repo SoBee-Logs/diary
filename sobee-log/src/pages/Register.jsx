@@ -10,19 +10,22 @@ function Register() {
     gender: "",
     age: "",
   });
+  const [agreed, setAgreed] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleRegister = async () => {
+    if (!agreed) return alert("개인정보 수집 및 이용에 동의해주세요!");
     try {
       const res = await axios.post("http://localhost:8081/api/users/register", {
         ...form,
         age: parseInt(form.age),
       });
       alert(res.data);
-      navigate("/mydata");
+      navigate("/login");
     } catch (e) {
       alert("회원가입 실패");
     }
@@ -48,7 +51,7 @@ function Register() {
       justifyContent: "center",
       minHeight: "100vh",
       padding: "20px",
-      backgroundColor: "#ffffff",
+      backgroundColor: "white",
     }}>
       <h1 style={{
         fontSize: "36px",
@@ -93,7 +96,30 @@ function Register() {
         >여성</button>
       </div>
 
-      <input placeholder="나이" name="age" value={form.age} onChange={handleChange} style={{ ...inputStyle, marginBottom: "24px" }} />
+      <input placeholder="나이" name="age" value={form.age} onChange={handleChange} style={{ ...inputStyle, marginBottom: "20px" }} />
+
+      {/* 개인정보 동의 */}
+      <div style={{
+        width: "100%",
+        maxWidth: "300px",
+        marginBottom: "24px",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+      }}>
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={() => setAgreed(!agreed)}
+          style={{ width: "18px", height: "18px", cursor: "pointer", accentColor: "#0083CA" }}
+        />
+        <span style={{ fontSize: "13px", color: "#555" }}>
+          <span
+            onClick={() => setShowModal(true)}
+            style={{ color: "#0083CA", textDecoration: "underline", cursor: "pointer" }}
+          >개인정보 수집 및 이용</span>에 동의합니다
+        </span>
+      </div>
 
       <button
         onClick={handleRegister}
@@ -104,6 +130,58 @@ function Register() {
           fontSize: "16px", fontWeight: "bold", cursor: "pointer",
         }}
       >회원가입</button>
+
+      {/* 약관 모달 */}
+      {showModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 1000,
+        }}>
+          <div style={{
+            backgroundColor: "white",
+            borderRadius: "16px",
+            padding: "24px",
+            width: "90%",
+            maxWidth: "340px",
+            maxHeight: "70vh",
+            overflowY: "auto",
+          }}>
+            <h3 style={{ color: "#0083CA", fontWeight: "bold", marginBottom: "16px" }}>개인정보 수집 및 이용 동의</h3>
+            <p style={{ fontSize: "13px", color: "#555", lineHeight: "1.8" }}>
+              <strong>1. 수집하는 개인정보 항목</strong><br />
+              이름, 이메일, 성별, 나이, 금융거래 내역<br /><br />
+              <strong>2. 개인정보 수집 및 이용 목적</strong><br />
+              소비 패턴 분석 및 맞춤형 소비 일기 생성, 금융 상품 추천 서비스 제공<br /><br />
+              <strong>3. 개인정보 보유 및 이용 기간</strong><br />
+              서비스 이용 기간 동안 보유하며, 탈퇴 시 즉시 파기<br /><br />
+              <strong>4. 마이데이터 연동 동의</strong><br />
+              Codef API를 통해 은행 및 카드사의 거래 내역을 수집합니다. 수집된 데이터는 소비 분석 목적으로만 사용됩니다.<br /><br />
+              <strong>5. 동의 거부 권리</strong><br />
+              개인정보 수집에 동의하지 않을 권리가 있으나, 동의 거부 시 서비스 이용이 제한됩니다.
+            </p>
+            <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  flex: 1, padding: "12px", borderRadius: "10px",
+                  border: "1.5px solid #ddd", backgroundColor: "white",
+                  color: "#555", cursor: "pointer", fontWeight: "bold",
+                }}
+              >닫기</button>
+              <button
+                onClick={() => { setAgreed(true); setShowModal(false); }}
+                style={{
+                  flex: 1, padding: "12px", borderRadius: "10px",
+                  border: "none", backgroundColor: "#0083CA",
+                  color: "white", cursor: "pointer", fontWeight: "bold",
+                }}
+              >동의하기</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
