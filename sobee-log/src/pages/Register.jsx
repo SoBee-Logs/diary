@@ -20,7 +20,7 @@ function Register() {
   const handleRegister = async () => {
     if (!agreed) return alert("개인정보 수집 및 이용에 동의해주세요!");
     try {
-      const res = await axios.post("http://localhost:8081/api/users/register", {
+      const res = await axios.post("http://localhost:8080/api/users/register", {
         ...form,
         age: parseInt(form.age),
       });
