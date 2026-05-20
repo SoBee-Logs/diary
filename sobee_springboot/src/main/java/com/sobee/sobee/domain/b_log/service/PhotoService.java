@@ -11,6 +11,7 @@ import com.sobee.sobee.domain.b_log.entity.PhotoMetadata;
 import com.sobee.sobee.domain.b_log.repository.EmotionsTextRepository;
 import com.sobee.sobee.domain.b_log.repository.PhotoMetadataRepository;
 import com.sobee.sobee.domain.b_log.repository.PhotoRepository;
+import com.sobee.sobee.domain.b_log.repository.PhotoGroupsRepository;
 import com.sobee.sobee.global.s3.S3Uploader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class PhotoService {
     private final PhotoMetadataRepository photoMetadataRepository;
     private final EmotionsTextRepository emotionsTextRepository;
     private final S3Uploader s3Uploader;
+    private final PhotoGroupsRepository photoGroupsRepository;
 
     // Z 포함한 ISO 8601 형식 처리
     private static final DateTimeFormatter TAKEN_AT_FORMATTER = new DateTimeFormatterBuilder()
@@ -87,6 +89,16 @@ public class PhotoService {
                     .emoji(moodType)
                     .build();
             emotionsTextRepository.save(emotionsText);
+        }
+
+        if (request.getGroupId() != null && !request.getGroupId().isEmpty()) {
+            for (Long groupId : request.getGroupId()) {  // groupIds → request.getGroupId()
+                PhotoGroups photoGroups = PhotoGroups.builder()
+                        .id(new PhotoGroupsId(photo.getPhotoId(), groupId))
+                        .photo(photo)
+                        .build();
+                photoGroupsRepository.save(photoGroups);
+            }
         }
 
         return PhotoUploadResponse.builder()
