@@ -18,7 +18,7 @@ export default function BottomNav({ floating = false }) {
     },
     {
       label: '홈',
-      path: '/',
+      path: '/home',
       icon: (active) => (
         <span
           className={`w-8 h-8 rounded-full flex items-center justify-center ${
