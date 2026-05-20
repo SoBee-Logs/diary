@@ -10,6 +10,9 @@ import CameraPage from './pages/CameraPage'
 import ConsumptionLog from './pages/ConsumptionLog'
 import LoadingPage from './pages/LoadingPage'
 import DiaryResult from './pages/DiaryResult'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import MyDataConnect from './pages/MyDataConnect'
 
 const routeConfig = [
   { path: '/',                element: <Home />,            bottomNav: true,  floatingNav: true,  appBar: false },
@@ -21,6 +24,9 @@ const routeConfig = [
   { path: '/consumption-log', element: <ConsumptionLog />,  bottomNav: false, floatingNav: false, appBar: false },
   { path: '/loading',         element: <LoadingPage />,     bottomNav: false, floatingNav: false, appBar: false },
   { path: '/diary-result',    element: <DiaryResult />,     bottomNav: false, floatingNav: false, appBar: false },
+  { path: '/login',    element: <Login />,    bottomNav: false, floatingNav: false, appBar: false },
+  { path: '/register', element: <Register />, bottomNav: false, floatingNav: false, appBar: false },
+  { path: '/mydata', element: <MyDataConnect />, bottomNav: false, floatingNav: false, appBar: false },
 ]
 
 function Layout() {
