@@ -6,6 +6,7 @@ import com.sobee.sobee.domain.b_log.entity.EmotionsText;
 import com.sobee.sobee.domain.b_log.entity.Photo;
 import com.sobee.sobee.domain.b_log.entity.PhotoGroups;
 import com.sobee.sobee.domain.b_log.entity.PhotoGroupsId;
+import com.sobee.sobee.domain.b_log.entity.MoodType;
 import com.sobee.sobee.domain.b_log.entity.PhotoMetadata;
 import com.sobee.sobee.domain.b_log.repository.EmotionsTextRepository;
 import com.sobee.sobee.domain.b_log.repository.PhotoMetadataRepository;
@@ -76,10 +77,14 @@ public class PhotoService {
 
         // EmotionsText 저장 (nullable)
         if (request.getText() != null || request.getEmoji() != null) {
+            MoodType moodType = null;
+            if (request.getEmoji() != null) {
+                moodType = MoodType.valueOf(request.getEmoji());  // "HAPPY" → MoodType.HAPPY
+            }
             EmotionsText emotionsText = EmotionsText.builder()
                     .photo(photo)
                     .text(request.getText())
-                    .emoji(request.getEmoji())
+                    .emoji(moodType)
                     .build();
             emotionsTextRepository.save(emotionsText);
         }

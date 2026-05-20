@@ -5,7 +5,8 @@ import { useNavigate } from 'react-router-dom'
 import StatusBar from '../components/common/StatusBar'
 import { ROOMS } from '../constants/rooms'
 
-const MOODS = ['☺️', '😭', '😮', '😍', '😡']
+const MOOD_EMOJIS = ['☺️', '😭', '😮', '😍', '😡']  // 화면 표시용
+const MOOD_TYPES = ['HAPPY', 'SAD', 'SURPRISED', 'LOVE', 'ANGRY']  // 백엔드 전송용
 
 export default function CameraPage() {
   const navigate = useNavigate()
@@ -47,7 +48,7 @@ export default function CameraPage() {
       formData.append('latitude', '37.5665')                  // 임시, 실제론 GPS
       formData.append('longitude', '126.9780')                // 임시
       if (text) formData.append('text', text)
-      formData.append('emoji', MOODS[selectedMood])
+      formData.append('emoji', MOOD_TYPES[selectedMood])
       groupIds.forEach((id) => formData.append('groupId', id))
 
       const res = await fetch('/api/photos', {
@@ -65,7 +66,7 @@ export default function CameraPage() {
       navigate('/consumption-log', {
         state: {
           text,
-          mood: MOODS[selectedMood],
+          mood: MOOD_EMOJIS[selectedMood],
           imageUrl: result.imageUrl,   // S3 URL
           selectedRooms,
           photoId: result.photoId,
@@ -140,7 +141,7 @@ export default function CameraPage() {
           <section className="text-left">
             <p className="text-[15px] font-bold text-gray-900 mb-4">소비 기분</p>
             <ul className="flex justify-between list-none p-0 m-0 px-1">
-              {MOODS.map((emoji, i) => (
+              {MOOD_EMOJIS.map((emoji, i) => (
                   <li key={i}>
                     <button
                         type="button"

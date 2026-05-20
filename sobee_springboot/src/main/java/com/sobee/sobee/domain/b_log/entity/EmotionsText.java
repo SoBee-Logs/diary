@@ -24,6 +24,7 @@ public class EmotionsText {
     @Column(name = "text", length = 100)
     private String text;
 
-    @Column(name = "emoji", length = 50)
-    private String emoji;
+    @Enumerated(EnumType.STRING)   // ← enum을 문자열로 저장
+    @Column(name = "emoji", length = 20)
+    private MoodType emoji;
 }
