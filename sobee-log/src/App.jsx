@@ -15,7 +15,8 @@ import Register from './pages/Register'
 import MyDataConnect from './pages/MyDataConnect'
 
 const routeConfig = [
-  { path: '/',                element: <Home />,            bottomNav: true,  floatingNav: true,  appBar: false },
+  { path: '/', element: <Register />, bottomNav: false, floatingNav: false, appBar: false },
+  { path: '/home', element: <Home />, bottomNav: true, floatingNav: true, appBar: false },
   { path: '/home/detail',     element: <HomeDetail />,      bottomNav: false, floatingNav: false, appBar: true, title: '홈 상세' },
   { path: '/report',          element: <Report />,          bottomNav: true,  floatingNav: false, appBar: true, title: '리포트' },
   { path: '/report/detail',   element: <ReportDetail />,    bottomNav: false, floatingNav: false, appBar: true, title: '리포트 상세' },

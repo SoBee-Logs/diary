@@ -12,6 +12,7 @@ function Login() {
         email,
       });
       alert(res.data);
+      navigate("/home");
     } catch (e) {
       alert("로그인 실패");
     }
