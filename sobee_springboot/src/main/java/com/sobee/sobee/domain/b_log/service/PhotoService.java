@@ -1,4 +1,3 @@
-// domain/b_log/service/PhotoService.java
 package com.sobee.sobee.domain.b_log.service;
 
 import com.sobee.sobee.domain.b_log.dto.PhotoUploadRequest;
@@ -16,8 +15,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 
 @Service
 @RequiredArgsConstructor
@@ -28,10 +30,25 @@ public class PhotoService {
     private final EmotionsTextRepository emotionsTextRepository;
     private final S3Uploader s3Uploader;
 
+    // Z 포함한 ISO 8601 형식 처리
+    private static final DateTimeFormatter TAKEN_AT_FORMATTER = new DateTimeFormatterBuilder()
+            .append(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            .optionalStart().appendOffsetId().optionalEnd()
+            .toFormatter();
+
+    private LocalDateTime parseTakenAt(String takenAt) {
+        try {
+            return LocalDateTime.parse(takenAt, TAKEN_AT_FORMATTER);
+        } catch (Exception e) {
+            // Z 제거 후 재시도
+            return LocalDateTime.parse(takenAt.replace("Z", "").replaceAll("\\.\\d+$", ""));
+        }
+    }
+
     @Transactional
     public PhotoUploadResponse uploadPhoto(PhotoUploadRequest request, Long userId) {
 
-        // 메타데이터 검증 (없으면 400 에러)
+        // 메타데이터 검증
         if (request.getLatitude() == null || request.getLongitude() == null || request.getTakenAt() == null) {
             throw new IllegalArgumentException("사진 메타데이터가 없습니다. 다시 촬영해주세요.");
         }
@@ -48,9 +65,10 @@ public class PhotoService {
         photoRepository.save(photo);
 
         // PhotoMetadata 저장
+        LocalDateTime takenAt = parseTakenAt(request.getTakenAt());
         PhotoMetadata metadata = PhotoMetadata.builder()
                 .photo(photo)
-                .takenAt(LocalDateTime.parse(request.getTakenAt()))
+                .takenAt(takenAt)
                 .latitude(BigDecimal.valueOf(request.getLatitude()))
                 .longitude(BigDecimal.valueOf(request.getLongitude()))
                 .build();
@@ -69,7 +87,7 @@ public class PhotoService {
         return PhotoUploadResponse.builder()
                 .photoId(photo.getPhotoId())
                 .imageUrl(imageUrl)
-                .takenAt(LocalDateTime.parse(request.getTakenAt()))
+                .takenAt(takenAt)
                 .createdAt(photo.getCreatedAt())
                 .build();
     }
