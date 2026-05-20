@@ -1,5 +1,6 @@
 package com.sobee.sobee.domain.b_log.controller;
 
+import com.sobee.sobee.domain.b_log.dto.PhotoListResponse;
 import com.sobee.sobee.domain.b_log.dto.PhotoUploadRequest;
 import com.sobee.sobee.domain.b_log.dto.PhotoUploadResponse;
 import com.sobee.sobee.domain.b_log.service.PhotoService;
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -51,5 +53,15 @@ public class PhotoController {
 
         PhotoUploadResponse response = photoService.uploadPhoto(request, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping
+    public ResponseEntity<PhotoListResponse> getPhotos(
+            @RequestParam("date") String date
+    ) {
+        Long userId = 1L;  // 임시, 추후 JWT로 교체
+        LocalDate localDate = LocalDate.parse(date);
+        PhotoListResponse response = photoService.getPhotosByDate(userId, localDate);
+        return ResponseEntity.ok(response);
     }
 }
