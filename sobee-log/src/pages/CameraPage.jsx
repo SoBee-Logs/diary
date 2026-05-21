@@ -51,10 +51,12 @@ export default function CameraPage() {
       formData.append('emoji', MOOD_TYPES[selectedMood])
       groupIds.forEach((id) => formData.append('groupId', id))
 
+      const token = localStorage.getItem("token");
+
       const res = await fetch('/api/photos', {
         method: 'POST',
         headers: {
-          'X-User-Id': '1',   // 실제로는 JWT 토큰에서 추출
+          'Authorization': `Bearer ${token}`,
         },
         body: formData,
       })
