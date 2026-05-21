@@ -11,7 +11,7 @@ function Login() {
       const res = await axios.post("http://localhost:8080/api/users/login", {
         email,
       });
-      alert(res.data);
+      localStorage.setItem("token", res.data.token);
       navigate("/home");
     } catch (e) {
       alert("로그인 실패");
@@ -26,7 +26,7 @@ function Login() {
       justifyContent: "center",
       height: "100vh",
       padding: "20px",
-      backgroundColor: "#ffffff",
+      backgroundColor: "white",
     }}>
       <h1 style={{
         fontSize: "36px",
@@ -42,46 +42,29 @@ function Login() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         style={{
-          width: "100%",
-          maxWidth: "300px",
-          padding: "14px",
-          marginBottom: "12px",
-          borderRadius: "10px",
-          border: "1.5px solid #20C4F4",
-          fontSize: "14px",
-          outline: "none",
-          boxSizing: "border-box",
+          width: "100%", maxWidth: "300px", padding: "14px",
+          marginBottom: "12px", borderRadius: "10px",
+          border: "1.5px solid #20C4F4", fontSize: "14px",
+          outline: "none", boxSizing: "border-box",
         }}
       />
       <button
         onClick={handleLogin}
         style={{
-          width: "100%",
-          maxWidth: "300px",
-          padding: "14px",
-          backgroundColor: "#0083CA",
-          color: "white",
-          border: "none",
-          borderRadius: "10px",
-          fontSize: "16px",
-          fontWeight: "bold",
-          cursor: "pointer",
+          width: "100%", maxWidth: "300px", padding: "14px",
+          backgroundColor: "#0083CA", color: "white",
+          border: "none", borderRadius: "10px",
+          fontSize: "16px", fontWeight: "bold", cursor: "pointer",
           marginBottom: "12px",
         }}
       >로그인</button>
       <button
         onClick={() => navigate("/register")}
         style={{
-          width: "100%",
-          maxWidth: "300px",
-          padding: "14px",
-          backgroundColor: "white",
-          color: "#0083CA",
-          border: "1.5px solid #0083CA",
-          borderRadius: "10px",
-          fontSize: "16px",
-          fontWeight: "bold",
-          cursor: "pointer",
+          width: "100%", maxWidth: "300px", padding: "14px",
+          backgroundColor: "white", color: "#0083CA",
+          border: "1.5px solid #0083CA", borderRadius: "10px",
+          fontSize: "16px", fontWeight: "bold", cursor: "pointer",
         }}
       >회원가입</button>
     </div>

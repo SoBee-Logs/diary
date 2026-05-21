@@ -41,7 +41,12 @@ export default function ConsumptionLog() {
     const fetchPhotos = async () => {
       setIsLoading(true)
       try {
-        const res = await fetch(`/api/photos?date=${selectedDate}`)
+        const token = localStorage.getItem("token")
+        const res = await fetch(`/api/photos?date=${selectedDate}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
         if (!res.ok) throw new Error('조회 실패')
         const data = await res.json()
         setPhotos(data.photos)
