@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import StatusBar from '../components/common/StatusBar'
 import { CURRENT_USER } from '../constants/rooms'
 import { roomFeedPreviews } from '../data/mockDiaries'
+import { jwtDecode } from "jwt-decode"
 
 const BANKS = [
   { code: "0002", name: "산업은행" },
@@ -46,7 +47,14 @@ const CARDS = [
 
 export default function Home() {
   const navigate = useNavigate()
-  const [showPopup, setShowPopup] = useState(true)
+
+  const token = localStorage.getItem("token")
+  const decoded = token ? jwtDecode(token) : null
+  const userId = decoded ? decoded.sub : null
+
+  const [showPopup, setShowPopup] = useState(() => {
+    return localStorage.getItem(`mydataConnected_${userId}`) !== "true"
+  })
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState([])
 
@@ -60,6 +68,7 @@ export default function Home() {
     if (selected.length === 0) return alert("최소 1개 이상 선택해주세요!")
     setLoading(true)
     setTimeout(() => {
+      localStorage.setItem(`mydataConnected_${userId}`, "true")
       setLoading(false)
       setShowPopup(false)
     }, 2000)
