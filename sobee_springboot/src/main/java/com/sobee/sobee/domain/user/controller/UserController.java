@@ -1,11 +1,12 @@
 package com.sobee.sobee.domain.user.controller;
 
 import com.sobee.sobee.domain.user.dto.UserRequestDto;
-import com.sobee.sobee.domain.user.entity.User;
 import com.sobee.sobee.domain.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -21,8 +22,10 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody UserRequestDto dto) {
-        User user = userService.login(dto.getEmail(), null);
-        return ResponseEntity.ok("로그인 성공: " + user.getEmail());
+    public ResponseEntity<?> login(@RequestBody UserRequestDto dto) {
+        String token = userService.login(dto.getEmail());
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        return ResponseEntity.ok(response);
     }
 }

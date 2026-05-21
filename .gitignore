@@ -31,3 +31,33 @@ replay_pid*
 *.iml
 
 *.yaml
+
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*/__pycache__/
+*.pyc
+
+# 가상환경
+venv/
+env/
+.env
+.venv
+
+# 환경변수
+.env
+*.env
+
+# IDE
+.idea/
+.vscode/
+
+# 로그
+*.log
+
+# 테스트
+.pytest_cache/

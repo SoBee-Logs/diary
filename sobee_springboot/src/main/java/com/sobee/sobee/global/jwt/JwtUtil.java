@@ -1,4 +1,4 @@
-package com.sobee.sobee.global;
+package com.sobee.sobee.global.jwt;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -10,8 +10,9 @@ import java.util.Date;
 
 @Component
 public class JwtUtil {
-
-    private final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    private final Key key = Keys.hmacShaKeyFor(
+        "sobee-secret-key-for-jwt-token-generation-must-be-long-enough".getBytes()
+    );
     private final long EXPIRATION = 1000 * 60 * 60 * 24; // 24시간
 
     public String generateToken(Long userId, String email) {

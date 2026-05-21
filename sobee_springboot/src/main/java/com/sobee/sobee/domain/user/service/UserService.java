@@ -3,6 +3,7 @@ package com.sobee.sobee.domain.user.service;
 import com.sobee.sobee.domain.user.dto.UserRequestDto;
 import com.sobee.sobee.domain.user.entity.User;
 import com.sobee.sobee.domain.user.repository.UserRepository;
+import com.sobee.sobee.global.jwt.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
     public void register(UserRequestDto dto) {
         User user = User.builder()
@@ -24,8 +26,9 @@ public class UserService {
         userRepository.save(user);
     }
 
-    public User login(String email, String password) {
-        return userRepository.findByEmail(email)
+    public String login(String email) {
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("이메일이 없습니다."));
+        return jwtUtil.generateToken(user.getUserId(), user.getEmail());
     }
 }
