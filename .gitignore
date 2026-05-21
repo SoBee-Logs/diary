@@ -29,3 +29,5 @@ replay_pid*
 # IntelliJ
 .idea/
 *.iml
+
+*.yaml
