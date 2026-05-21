@@ -15,17 +15,16 @@ import Register from './pages/Register'
 import MyDataConnect from './pages/MyDataConnect'
 
 const routeConfig = [
-  { path: '/', element: <Register />, bottomNav: false, floatingNav: false, appBar: false },
+  { path: '/', element: <Login />, bottomNav: false, floatingNav: false, appBar: false },
   { path: '/home', element: <Home />, bottomNav: true, floatingNav: true, appBar: false },
-  { path: '/home/detail',     element: <HomeDetail />,      bottomNav: false, floatingNav: false, appBar: true, title: '홈 상세' },
-  { path: '/report',          element: <Report />,          bottomNav: true,  floatingNav: false, appBar: true, title: '리포트' },
-  { path: '/report/detail',   element: <ReportDetail />,    bottomNav: false, floatingNav: false, appBar: true, title: '리포트 상세' },
-  { path: '/feed',            element: <Feed />,            bottomNav: true,  floatingNav: false, appBar: false },
-  { path: '/camera',          element: <CameraPage />,      bottomNav: false, floatingNav: false, appBar: false },
-  { path: '/consumption-log', element: <ConsumptionLog />,  bottomNav: false, floatingNav: false, appBar: false },
-  { path: '/loading',         element: <LoadingPage />,     bottomNav: false, floatingNav: false, appBar: false },
-  { path: '/diary-result',    element: <DiaryResult />,     bottomNav: false, floatingNav: false, appBar: false },
-  { path: '/login',    element: <Login />,    bottomNav: false, floatingNav: false, appBar: false },
+  { path: '/home/detail', element: <HomeDetail />, bottomNav: false, floatingNav: false, appBar: true, title: '홈 상세' },
+  { path: '/report', element: <Report />, bottomNav: true, floatingNav: false, appBar: true, title: '리포트' },
+  { path: '/report/detail', element: <ReportDetail />, bottomNav: false, floatingNav: false, appBar: true, title: '리포트 상세' },
+  { path: '/feed', element: <Feed />, bottomNav: true, floatingNav: false, appBar: false },
+  { path: '/camera', element: <CameraPage />, bottomNav: false, floatingNav: false, appBar: false },
+  { path: '/consumption-log', element: <ConsumptionLog />, bottomNav: false, floatingNav: false, appBar: false },
+  { path: '/loading', element: <LoadingPage />, bottomNav: false, floatingNav: false, appBar: false },
+  { path: '/diary-result', element: <DiaryResult />, bottomNav: false, floatingNav: false, appBar: false },
   { path: '/register', element: <Register />, bottomNav: false, floatingNav: false, appBar: false },
   { path: '/mydata', element: <MyDataConnect />, bottomNav: false, floatingNav: false, appBar: false },
 ]
