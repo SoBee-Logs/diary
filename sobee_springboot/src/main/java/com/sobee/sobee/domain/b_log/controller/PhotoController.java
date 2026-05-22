@@ -4,6 +4,7 @@ import com.sobee.sobee.domain.b_log.dto.PhotoListResponse;
 import com.sobee.sobee.domain.b_log.dto.PhotoUploadRequest;
 import com.sobee.sobee.domain.b_log.dto.PhotoUploadResponse;
 import com.sobee.sobee.domain.b_log.service.PhotoService;
+import com.sobee.sobee.global.jwt.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,9 +22,19 @@ import java.util.stream.Collectors;
 public class PhotoController {
 
     private final PhotoService photoService;
+    private final JwtUtil jwtUtil;
+
+    private Long extractUserId(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("토큰이 없습니다.");
+        }
+        String token = authHeader.substring(7);
+        return jwtUtil.getUserId(token);
+    }
 
     @PostMapping
     public ResponseEntity<PhotoUploadResponse> uploadPhoto(
+            @RequestHeader("Authorization") String authHeader,
             @RequestPart("image") MultipartFile image,
             @RequestPart("takenAt") String takenAt,
             @RequestPart("latitude") String latitude,
@@ -32,11 +43,12 @@ public class PhotoController {
             @RequestPart(value = "emoji", required = false) String emoji,
             @RequestPart(value = "groupId", required = false) String groupId
     ) {
-        Long userId = 1L;
+        Long userId = extractUserId(authHeader);
 
-        List<Long> groupIds = null;
+        List<Long> groupIdList = null;
         if (groupId != null && !groupId.isEmpty()) {
-            groupIds = Arrays.stream(groupId.split(","))
+            groupIdList = Arrays.stream(groupId.split(","))
+                    .map(String::trim)
                     .map(Long::parseLong)
                     .collect(Collectors.toList());
         }
@@ -48,7 +60,7 @@ public class PhotoController {
                 .longitude(Double.valueOf(longitude))
                 .text(text)
                 .emoji(emoji)
-                .groupId(groupIds)
+                .groupId(groupIdList)
                 .build();
 
         PhotoUploadResponse response = photoService.uploadPhoto(request, userId);
@@ -57,9 +69,10 @@ public class PhotoController {
 
     @GetMapping
     public ResponseEntity<PhotoListResponse> getPhotos(
+            @RequestHeader("Authorization") String authHeader,
             @RequestParam("date") String date
     ) {
-        Long userId = 1L;  // 임시, 추후 JWT로 교체
+        Long userId = extractUserId(authHeader);
         LocalDate localDate = LocalDate.parse(date);
         PhotoListResponse response = photoService.getPhotosByDate(userId, localDate);
         return ResponseEntity.ok(response);

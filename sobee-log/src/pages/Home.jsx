@@ -49,8 +49,15 @@ export default function Home() {
   const navigate = useNavigate()
 
   const token = localStorage.getItem("token")
-  const decoded = token ? jwtDecode(token) : null
-  const userId = decoded ? decoded.sub : null
+  let userId = null
+  try {
+    if (token) {
+      const decoded = jwtDecode(token)
+      userId = decoded.sub
+    }
+  } catch (e) {
+    console.error("토큰 디코딩 실패", e)
+  }
 
   const [showPopup, setShowPopup] = useState(() => {
     return localStorage.getItem(`mydataConnected_${userId}`) !== "true"

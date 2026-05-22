@@ -7,17 +7,17 @@ function Login() {
   const [email, setEmail] = useState("");
 
   const handleLogin = async () => {
-    try {
-      const res = await axios.post("http://localhost:8080/api/users/login", {
-        email,
-      });
-      localStorage.setItem("token", res.data.token);
-      navigate("/home");
-    } catch (e) {
-      alert("로그인 실패");
-    }
-  };
-
+  try {
+    const res = await axios.post("http://localhost:8080/api/users/login", {
+      email,
+    });
+    console.log("로그인 응답:", res.data);
+    localStorage.setItem("token", res.data.token);
+    navigate("/home");
+  } catch (e) {
+    alert("로그인 실패");
+  }
+};
   return (
     <div style={{
       display: "flex",

@@ -4,7 +4,6 @@ import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css'
 import StatusBar from '../components/common/StatusBar'
 import BottomNav from '../components/common/BottomNav'
-import { ROOMS } from '../constants/rooms'
 
 const toLocalDateStr = (date) => {
   const y = date.getFullYear()
@@ -16,18 +15,15 @@ const toLocalDateStr = (date) => {
 export default function ConsumptionLog() {
   const navigate = useNavigate()
   const location = useLocation()
-  const selectedRooms = location.state?.selectedRooms ?? ['room1', 'room2']
+  const selectedRooms = location.state?.selectedRooms ?? []
   const [photos, setPhotos] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCalendar, setShowCalendar] = useState(false)
   const [selectedDate, setSelectedDate] = useState(toLocalDateStr(new Date()))
+  const [myGroups, setMyGroups] = useState([])
 
   const today = new Date()
   today.setHours(23, 59, 59, 999)
-
-  const roomHashtags = selectedRooms
-    .map((id) => ROOMS.find((r) => r.id === id)?.hashtag)
-    .filter(Boolean)
 
   const toKoreanLabel = (dateStr) => {
     return new Date(dateStr + 'T00:00:00').toLocaleDateString('ko-KR', {
@@ -38,14 +34,29 @@ export default function ConsumptionLog() {
   }
 
   useEffect(() => {
+    const fetchMyGroups = async () => {
+      try {
+        const token = localStorage.getItem("token")
+        if (!token) return
+        const res = await fetch('http://localhost:8080/api/groups', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+        const data = await res.json()
+        setMyGroups(data)
+      } catch (err) {
+        console.error('모임 목록 조회 실패', err)
+      }
+    }
+    fetchMyGroups()
+  }, [])
+
+  useEffect(() => {
     const fetchPhotos = async () => {
       setIsLoading(true)
       try {
         const token = localStorage.getItem("token")
         const res = await fetch(`/api/photos?date=${selectedDate}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          headers: { 'Authorization': `Bearer ${token}` },
         })
         if (!res.ok) throw new Error('조회 실패')
         const data = await res.json()
@@ -59,6 +70,15 @@ export default function ConsumptionLog() {
     fetchPhotos()
   }, [selectedDate])
 
+  const getGroupHashtags = (groupIds) => {
+  return groupIds
+    .map((gid) => {
+      const group = myGroups.find((g) => Number(g.groupId) === Number(gid))
+      return group ? `#${group.groupName}` : null
+    })
+    .filter(Boolean)
+  }
+
   const handleDateChange = (date) => {
     setSelectedDate(toLocalDateStr(date))
     setShowCalendar(false)
@@ -68,7 +88,7 @@ export default function ConsumptionLog() {
     navigate('/loading', {
       state: {
         ...location.state,
-        selectedRooms: selectedRooms.length > 0 ? selectedRooms : ['room1', 'room2'],
+        selectedRooms,
       },
     })
   }
@@ -89,8 +109,6 @@ export default function ConsumptionLog() {
         <p className="text-[13px] font-semibold text-gray-900 m-0 leading-snug">
           나의 소비 로그
         </p>
-
-        {/* 날짜 chip */}
         <button
           type="button"
           onClick={() => setShowCalendar(true)}
@@ -101,7 +119,6 @@ export default function ConsumptionLog() {
         </button>
       </header>
 
-      {/* 달력 모달 */}
       {showCalendar && (
         <div
           className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
@@ -131,7 +148,6 @@ export default function ConsumptionLog() {
       )}
 
       <div className="flex-1 overflow-y-auto px-5 pb-[140px] relative">
-        {/* 타임라인 선 */}
         <span
           className="absolute left-[75px] top-2 bottom-4 w-[1.5px] bg-gray-200 rounded-full"
           aria-hidden
@@ -146,20 +162,9 @@ export default function ConsumptionLog() {
         ) : (
           <ul className="list-none m-0 p-0 pb-4">
             {photos.map((photo) => {
-              const roomTags = photo.group
-                .map((gid) =>
-                  ROOMS.find((r) => {
-                    const roomIdMap = { room1: 1, room2: 2, room3: 3 }
-                    return roomIdMap[r.id] === gid
-                  })?.hashtag
-                )
-                .filter(Boolean)
-
-              const tags = roomTags.length ? roomTags : roomHashtags
-
+              const tags = getGroupHashtags(photo.group)
               return (
                 <li key={photo.id} className="flex gap-0 mb-6 relative items-start">
-                  {/* 왼쪽: 시간 + 이모지 + 태그 */}
                   <div className="w-[58px] shrink-0 text-left pt-1">
                     <span className="block text-[12px] font-semibold text-gray-900 leading-tight">
                       {photo.time}
@@ -170,12 +175,10 @@ export default function ConsumptionLog() {
                     </span>
                   </div>
 
-                  {/* 타임라인 dot */}
                   <div className="w-[18px] shrink-0 flex justify-center pt-[5px]">
                     <span className="w-2 h-2 rounded-full bg-[#00BFFF] border-2 border-white z-10 block" />
                   </div>
 
-                  {/* 오른쪽: 사진 + 텍스트 */}
                   <div className="flex-1 min-w-0">
                     <figure className="m-0 rounded-xl overflow-hidden border border-gray-200 aspect-[5/3] bg-gray-100">
                       <img
