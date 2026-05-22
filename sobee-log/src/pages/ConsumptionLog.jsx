@@ -71,12 +71,12 @@ export default function ConsumptionLog() {
   }, [selectedDate])
 
   const getGroupHashtags = (groupIds) => {
-    return groupIds
-      .map((gid) => {
-        const group = myGroups.find((g) => g.groupId === gid)
-        return group ? `#${group.groupName}` : null
-      })
-      .filter(Boolean)
+  return groupIds
+    .map((gid) => {
+      const group = myGroups.find((g) => Number(g.groupId) === Number(gid))
+      return group ? `#${group.groupName}` : null
+    })
+    .filter(Boolean)
   }
 
   const handleDateChange = (date) => {

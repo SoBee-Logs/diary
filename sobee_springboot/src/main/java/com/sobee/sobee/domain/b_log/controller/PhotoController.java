@@ -45,9 +45,10 @@ public class PhotoController {
     ) {
         Long userId = extractUserId(authHeader);
 
-        List<Long> groupIds = null;
+        List<Long> groupIdList = null;
         if (groupId != null && !groupId.isEmpty()) {
-            groupIds = Arrays.stream(groupId.split(","))
+            groupIdList = Arrays.stream(groupId.split(","))
+                    .map(String::trim)
                     .map(Long::parseLong)
                     .collect(Collectors.toList());
         }
@@ -59,7 +60,7 @@ public class PhotoController {
                 .longitude(Double.valueOf(longitude))
                 .text(text)
                 .emoji(emoji)
-                .groupId(groupIds)
+                .groupId(groupIdList)
                 .build();
 
         PhotoUploadResponse response = photoService.uploadPhoto(request, userId);

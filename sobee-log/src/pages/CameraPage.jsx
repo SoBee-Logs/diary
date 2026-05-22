@@ -65,7 +65,7 @@ export default function CameraPage() {
       formData.append('longitude', '126.9780')
       if (text) formData.append('text', text)
       formData.append('emoji', MOOD_TYPES[selectedMood])
-      selectedRooms.forEach((id) => formData.append('groupId', id))
+      formData.append('groupId', selectedRooms.join(','))
 
       const res = await fetch('/api/photos', {
         method: 'POST',
