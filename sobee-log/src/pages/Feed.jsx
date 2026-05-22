@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import RoomTabs from '../components/common/RoomTabs'
 import StatusBar from '../components/common/StatusBar'
-import { mockDiaries } from '../data/mockDiaries'
+
 
 function FeedPost({ post, onToggleLike }) {
   return (
@@ -65,7 +65,7 @@ function FeedPost({ post, onToggleLike }) {
 export default function Feed() {
   const location = useLocation()
   const [activeRoom, setActiveRoom] = useState('room1')
-  const [posts, setPosts] = useState(mockDiaries)
+  const [posts, setPosts] = useState([])
 
   useEffect(() => {
     if (location.state?.roomId) {

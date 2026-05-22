@@ -1,12 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ROOMS } from '../../constants/rooms'
 
 const generateCode = () => Math.random().toString(36).substring(2, 8).toUpperCase()
 
 export default function RoomTabs({ activeRoom, onChange, showAdd = false }) {
-  const [rooms, setRooms] = useState(
-    ROOMS.map((r) => ({ ...r, code: generateCode() }))
-  )
+  const [rooms, setRooms] = useState([])
   const [showCreatePopup, setShowCreatePopup] = useState(false)
   const [showJoinPopup, setShowJoinPopup] = useState(false)
   const [showCodePopup, setShowCodePopup] = useState(false)
@@ -15,6 +13,36 @@ export default function RoomTabs({ activeRoom, onChange, showAdd = false }) {
   const [newRoomDesc, setNewRoomDesc] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [currentCode, setCurrentCode] = useState('')
+
+  useEffect(() => {
+    const fetchMyGroups = async () => {
+      try {
+        const token = localStorage.getItem("token")
+        if (!token) return
+        const res = await fetch('http://localhost:8080/api/groups', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+        const data = await res.json()
+        if (data && data.length > 0) {
+          const fetchedRooms = data.map((group) => ({
+            id: `room_${group.groupId}`,
+            label: group.groupName,
+            hashtag: `#${group.groupName}`,
+            diaryTab: group.groupName,
+            desc: group.groupDescription,
+            code: group.groupCode,
+          }))
+          setRooms(fetchedRooms)
+          onChange?.(fetchedRooms[0].id)
+        }
+      } catch (err) {
+        console.error('모임 목록 조회 실패', err)
+      }
+    }
+    fetchMyGroups()
+  }, [])
 
   const handleTabClick = (roomId) => {
     if (activeRoom === roomId) {
@@ -27,41 +55,41 @@ export default function RoomTabs({ activeRoom, onChange, showAdd = false }) {
   }
 
   const handleCreate = async () => {
-  if (!newRoomName.trim()) return alert('모임 이름을 입력해주세요!')
-  try {
-    const token = localStorage.getItem("token")
-    const res = await fetch('http://localhost:8080/api/groups', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        groupName: newRoomName,
-        groupDescription: newRoomDesc,
-      }),
-    })
-    const data = await res.json()
-    const newRoom = {
-      id: `room${rooms.length + 1}`,
-      label: data.groupName,
-      hashtag: `#${data.groupName}`,
-      diaryTab: data.groupName,
-      desc: data.groupDescription,
-      code: data.groupCode,
+    if (!newRoomName.trim()) return alert('모임 이름을 입력해주세요!')
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch('http://localhost:8080/api/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          groupName: newRoomName,
+          groupDescription: newRoomDesc,
+        }),
+      })
+      const data = await res.json()
+      const newRoom = {
+        id: `room_${data.groupId}`,
+        label: data.groupName,
+        hashtag: `#${data.groupName}`,
+        diaryTab: data.groupName,
+        desc: data.groupDescription,
+        code: data.groupCode,
+      }
+      setRooms([...rooms, newRoom])
+      setNewRoomName('')
+      setNewRoomDesc('')
+      setShowCreatePopup(false)
+      setCurrentCode(data.groupCode)
+      setShowCodePopup(true)
+      onChange?.(newRoom.id)
+    } catch (err) {
+      alert('모임 생성에 실패했어요.')
+      console.error(err)
     }
-    setRooms([...rooms, newRoom])
-    setNewRoomName('')
-    setNewRoomDesc('')
-    setShowCreatePopup(false)
-    setCurrentCode(data.groupCode)
-    setShowCodePopup(true)
-    onChange?.(newRoom.id)
-  } catch (err) {
-    alert('모임 생성에 실패했어요.')
-    console.error(err)
   }
-}
 
   const handleJoin = async () => {
     if (!joinCode.trim()) return alert('초대 코드를 입력해주세요!')
@@ -76,7 +104,7 @@ export default function RoomTabs({ activeRoom, onChange, showAdd = false }) {
       if (!res.ok) throw new Error('참여 실패')
       const data = await res.json()
       const newRoom = {
-        id: `room${rooms.length + 1}`,
+        id: `room_${data.groupId}`,
         label: data.groupName,
         hashtag: `#${data.groupName}`,
         diaryTab: data.groupName,
@@ -201,15 +229,15 @@ export default function RoomTabs({ activeRoom, onChange, showAdd = false }) {
             </p>
 
             <input
-              placeholder="모임 소개 (12자 이내)"
+              placeholder="모임 소개 (15자 이내)"
               value={newRoomDesc}
               onChange={(e) => {
-                if (e.target.value.length <= 20) setNewRoomDesc(e.target.value)
+                if (e.target.value.length <= 15) setNewRoomDesc(e.target.value)
               }}
               style={inputStyle}
             />
             <p style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '16px', textAlign: 'right' }}>
-              {newRoomDesc.length}/20
+              {newRoomDesc.length}/15
             </p>
 
             <div style={{ display: 'flex', gap: '8px' }}>

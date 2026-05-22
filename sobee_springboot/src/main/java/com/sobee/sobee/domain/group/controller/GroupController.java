@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/groups")
 @RequiredArgsConstructor
@@ -30,7 +32,7 @@ public class GroupController {
             @RequestBody GroupRequestDto dto
     ) {
         Long userId = extractUserId(authHeader);
-        GroupResponseDto response = groupService.createGroup(dto);
+        GroupResponseDto response = groupService.createGroup(dto, userId);
         return ResponseEntity.ok(response);
     }
 
@@ -40,7 +42,16 @@ public class GroupController {
             @RequestParam String code
     ) {
         Long userId = extractUserId(authHeader);
-        GroupResponseDto response = groupService.joinGroup(code);
+        GroupResponseDto response = groupService.joinGroup(code, userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<GroupResponseDto>> getMyGroups(
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        Long userId = extractUserId(authHeader);
+        List<GroupResponseDto> response = groupService.getMyGroups(userId);
         return ResponseEntity.ok(response);
     }
 }
