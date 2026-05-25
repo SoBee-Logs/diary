@@ -11,6 +11,8 @@ class DiaryRequest(BaseModel):
     mood: Optional[str] = None
     # 프론트 소비 로그 타임라인에서 해시태그로 표시할 방 번호 목록 (예: ["#거지방", "#다이어트방"])
     tags: Optional[List[str]] = []
+    # Spring Boot가 주입하는 모임방 특징 — 일기 톤/스타일 결정에 사용
+    group_description: Optional[str] = None
 
 # AI가 일기를 다 쓰고 나서 프론트엔드로 돌려줄 데이터 형식
 class DiaryResponse(BaseModel):

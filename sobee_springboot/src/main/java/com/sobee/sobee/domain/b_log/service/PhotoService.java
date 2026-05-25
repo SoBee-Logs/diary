@@ -4,16 +4,24 @@ import com.sobee.sobee.domain.b_log.dto.PhotoListResponse;
 import com.sobee.sobee.domain.b_log.dto.PhotoResponse;
 import com.sobee.sobee.domain.b_log.dto.PhotoUploadRequest;
 import com.sobee.sobee.domain.b_log.dto.PhotoUploadResponse;
+import com.sobee.sobee.domain.b_log.dto.PhotoVlmResultRequest;
+import com.sobee.sobee.domain.b_log.dto.PhotoVlmResultResponse;
 import com.sobee.sobee.domain.b_log.entity.EmotionsText;
 import com.sobee.sobee.domain.b_log.entity.MoodType;
+import com.sobee.sobee.domain.b_log.entity.PersonaTransaction;
 import com.sobee.sobee.domain.b_log.entity.Photo;
 import com.sobee.sobee.domain.b_log.entity.PhotoGroups;
 import com.sobee.sobee.domain.b_log.entity.PhotoGroupsId;
 import com.sobee.sobee.domain.b_log.entity.PhotoMetadata;
+import com.sobee.sobee.domain.b_log.entity.PhotoVlmResult;
+import com.sobee.sobee.domain.b_log.entity.Transaction;
 import com.sobee.sobee.domain.b_log.repository.EmotionsTextRepository;
+import com.sobee.sobee.domain.b_log.repository.PersonaTransactionRepository;
 import com.sobee.sobee.domain.b_log.repository.PhotoGroupsRepository;
 import com.sobee.sobee.domain.b_log.repository.PhotoMetadataRepository;
 import com.sobee.sobee.domain.b_log.repository.PhotoRepository;
+import com.sobee.sobee.domain.b_log.repository.PhotoVlmResultRepository;
+import com.sobee.sobee.domain.b_log.repository.TransactionRepository;
 import com.sobee.sobee.global.s3.S3Uploader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +32,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -36,6 +45,9 @@ public class PhotoService {
     private final EmotionsTextRepository emotionsTextRepository;
     private final PhotoGroupsRepository photoGroupsRepository;
     private final S3Uploader s3Uploader;
+    private final PhotoVlmResultRepository photoVlmResultRepository;
+    private final PersonaTransactionRepository personaTransactionRepository;
+    private final TransactionRepository transactionRepository;
 
     private static final DateTimeFormatter TAKEN_AT_FORMATTER = new DateTimeFormatterBuilder()
             .append(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
@@ -141,6 +153,9 @@ public class PhotoService {
                     .map(pg -> pg.getId().getGroupId())
                     .collect(Collectors.toList());
 
+            // persona_transaction 테이블에 해당 사진의 결제 매핑 레코드가 있는지 확인
+            boolean mapped = personaTransactionRepository.existsByPhotoId(photo.getPhotoId());
+
             return PhotoResponse.builder()
                     .id(photo.getPhotoId())
                     .url(photo.getImageUrl())
@@ -149,6 +164,7 @@ public class PhotoService {
                     .emoji(emoji)
                     .text(text)
                     .group(groupIds)
+                    .mapped(mapped)
                     .build();
 
         }).collect(Collectors.toList());
@@ -156,5 +172,111 @@ public class PhotoService {
         return PhotoListResponse.builder()
                 .photos(responses)
                 .build();
+    }
+
+    // 특정 그룹의 가장 최신 사진 URL 반환 — 홈 피드 미리보기에 사용
+    @Transactional(readOnly = true)
+    public String getLatestPhotoUrlByGroup(Long groupId) {
+        List<PhotoGroups> pgList = photoGroupsRepository.findByIdGroupId(groupId);
+        return pgList.stream()
+                .filter(pg -> pg.getPhoto() != null && pg.getPhoto().getCreatedAt() != null)
+                .max(Comparator.comparing(pg -> pg.getPhoto().getCreatedAt()))
+                .map(pg -> pg.getPhoto().getImageUrl())
+                .orElse(null);
+    }
+
+    // VLM 분석 결과를 photo_vlm_results에 저장하고, transactions과 매핑해 persona_transaction에 저장
+    @Transactional
+    public PhotoVlmResultResponse saveVlmResult(Long photoId, Long userId, PhotoVlmResultRequest request) {
+
+        // VLM 분석 결과 저장
+        PhotoVlmResult vlmResult = PhotoVlmResult.builder()
+                .photoId(photoId)
+                .vlmCategory(request.getCategory())
+                .vlmItemName(request.getItem_name())
+                .vlmPriceEstimate(request.getPrice() != null
+                        ? BigDecimal.valueOf(request.getPrice()) : null)
+                .vlmStoreType(request.getLocation_type())
+                .vlmStoreName(request.getStore_name())
+                .vlmDescription(request.getDescription())
+                .vlmConfidence(request.getConfidence() != null ? request.getConfidence() : "low")
+                .vlmAddress(request.getAddress())
+                .build();
+        photoVlmResultRepository.save(vlmResult);
+
+        // 결제 내역 매핑 시도 — VLM의 실제 촬영 일시를 함께 전달
+        String matchedPaymentId = matchTransaction(photoId, userId, vlmResult, request.getTaken_at());
+
+        return PhotoVlmResultResponse.builder()
+                .vlmId(vlmResult.getVlmId())
+                .photoId(photoId)
+                .matched(matchedPaymentId != null)
+                .matchedPaymentId(matchedPaymentId)
+                .build();
+    }
+
+    // VLM의 실제 촬영 일시(EXIF) 또는 photo_metadata.taken_at 기준으로 결제 내역을 찾아 persona_transaction에 저장
+    private String matchTransaction(Long photoId, Long userId, PhotoVlmResult vlmResult, String vlmTakenAt) {
+
+        // ① VLM이 EXIF에서 추출한 실제 촬영 날짜를 우선 사용 (형식: "yyyy-MM-dd HH:mm:ss")
+        LocalDate takenDate = null;
+        if (vlmTakenAt != null && !vlmTakenAt.isBlank()) {
+            try {
+                takenDate = LocalDate.parse(
+                        vlmTakenAt.trim().substring(0, 10),
+                        DateTimeFormatter.ISO_LOCAL_DATE
+                );
+            } catch (Exception ignored) {
+                // 파싱 실패 시 photo_metadata로 폴백
+            }
+        }
+
+        // ② VLM 날짜 파싱 실패 시 photo_metadata.taken_at 폴백
+        if (takenDate == null) {
+            PhotoMetadata metadata = photoMetadataRepository
+                    .findByPhotoPhotoId(photoId).orElse(null);
+            if (metadata == null || metadata.getTakenAt() == null) return null;
+            takenDate = metadata.getTakenAt().toLocalDate();
+        }
+
+        // 같은 날 해당 유저의 지출 내역 조회 (없으면 매핑 불가)
+        List<Transaction> candidates = transactionRepository
+                .findOutgoingByUserIdAndDate(userId, takenDate);
+        if (candidates.isEmpty()) return null;
+
+        Transaction best;
+
+        if (vlmResult.getVlmPriceEstimate() != null) {
+            // 가격 있을 때: 추정 가격과 실제 결제금액 차이가 가장 작은 내역 선택
+            double estimatedPrice = vlmResult.getVlmPriceEstimate().doubleValue();
+
+            best = candidates.stream()
+                    .min(Comparator.comparingDouble(t ->
+                            Math.abs(t.getPaymentOut() - estimatedPrice)))
+                    .orElse(null);
+            if (best == null) return null;
+
+            // 차이가 추정 가격의 80% 초과면 매핑 신뢰도 낮으므로 skip
+            double diff = Math.abs(best.getPaymentOut() - estimatedPrice);
+            if (estimatedPrice > 0 && diff > estimatedPrice * 0.8) return null;
+
+        } else {
+            // 가격 없을 때: 같은 날 지출 내역 중 금액이 가장 큰 내역으로 매핑 (날짜 기반 폴백)
+            best = candidates.stream()
+                    .max(Comparator.comparingInt(Transaction::getPaymentOut))
+                    .orElse(null);
+            if (best == null) return null;
+        }
+
+        // persona_transaction에 매핑 결과 저장
+        PersonaTransaction mapping = PersonaTransaction.builder()
+                .vlmId(vlmResult.getVlmId())
+                .photoId(photoId)
+                .paymentId(String.valueOf(best.getId().getPaymentId()))
+                .userId(userId)
+                .build();
+        personaTransactionRepository.save(mapping);
+
+        return String.valueOf(best.getId().getPaymentId());
     }
 }

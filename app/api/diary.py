@@ -24,6 +24,7 @@ DIARY_PROMPT_TEMPLATE = """[분량 제한 — 절대 준수]
 
 너는 소비 일기를 써주는 AI야.
 아래 소비 정보를 바탕으로 짧은 소비 일기를 한국어로 써줘.
+일기의 톤과 내용은 반드시 아래 '모임방 특징'에 맞게 맞춰야 해.
 
 소비 정보:
 - 품목: {item_name}
@@ -32,6 +33,7 @@ DIARY_PROMPT_TEMPLATE = """[분량 제한 — 절대 준수]
 - 가게: {store_name}
 - 설명: {description}
 - 소비 기분: {mood_label} ({mood})
+- 모임방 특징: {group_description}
 
 반드시 아래 JSON 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마.
 {{
@@ -64,6 +66,7 @@ async def generate_diary(req: DiaryRequest) -> DiaryResponse:
         description=req.description or "",
         mood=req.mood or "",
         mood_label=mood_label,
+        group_description=req.group_description or "일반 소비 모임",
     )
 
     response = await client.chat.completions.create(

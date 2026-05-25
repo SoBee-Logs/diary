@@ -113,7 +113,7 @@ export default function Feed() {
           </p>
         ) : (
           filtered.map((post) => (
-            <FeedPost key={post.id} post={post} onToggleLike={handleToggleLike} />
+            <FeedPost key={post.roomId} post={post} onToggleLike={handleToggleLike} />
           ))
         )}
       </section>

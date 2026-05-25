@@ -1,8 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import StatusBar from '../components/common/StatusBar'
 import { CURRENT_USER } from '../constants/rooms'
-import { roomFeedPreviews } from '../data/mockDiaries'
 import { jwtDecode } from "jwt-decode"
 
 const BANKS = [
@@ -64,6 +63,48 @@ export default function Home() {
   })
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState([])
+
+  // 실제 모임방 목록 + 각 방의 최신 사진 URL
+  const [feedPreviews, setFeedPreviews] = useState([])
+
+  useEffect(() => {
+    const fetchFeedPreviews = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) return
+
+        // ① 내 모임방 목록 조회
+        const groupsRes = await fetch('/api/groups', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!groupsRes.ok) return
+        const groups = await groupsRes.json()
+
+        // ② 각 모임방의 최신 사진 병렬 조회
+        const previews = await Promise.all(
+          groups.map(async (g) => {
+            try {
+              const photoRes = await fetch(`/api/photos/group/${g.groupId}/latest`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+              const photoData = await photoRes.json()
+              return {
+                groupId: g.groupId,
+                groupName: g.groupName,
+                imageUrl: photoData?.imageUrl ?? null,
+              }
+            } catch {
+              return { groupId: g.groupId, groupName: g.groupName, imageUrl: null }
+            }
+          })
+        )
+        setFeedPreviews(previews)
+      } catch (err) {
+        console.error('피드 미리보기 로딩 실패', err)
+      }
+    }
+    fetchFeedPreviews()
+  }, [])
 
   const toggleSelect = (code) => {
     setSelected((prev) =>
@@ -220,23 +261,41 @@ export default function Home() {
 
       <section className="px-5 pt-6 pb-24">
         <h2 className="text-[18px] font-bold text-gray-900 mb-4">피드</h2>
-        <ul className="grid grid-cols-2 gap-x-4 gap-y-4 list-none p-0 m-0">
-          {roomFeedPreviews.map((item) => (
-            <li key={item.roomId}>
-              <button type="button" onClick={() => navigate('/feed', { state: { roomId: item.roomId } })} className="w-full text-left p-0 border-0 bg-transparent">
-                <figure className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 m-0 mb-2">
-                  <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
-                  <span className="absolute bottom-2 right-2 text-gray-300">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                    </svg>
-                  </span>
-                </figure>
-                <p className="text-[13px] font-bold text-gray-900 m-0">{item.roomName}</p>
-              </button>
-            </li>
-          ))}
-        </ul>
+        {feedPreviews.length === 0 ? (
+          <p className="text-[13px] text-gray-400 text-center py-6">
+            아직 모임방이 없어요. 모임을 만들어보세요!
+          </p>
+        ) : (
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-4 list-none p-0 m-0">
+            {feedPreviews.map((item) => (
+              <li key={item.groupId}>
+                <button
+                  type="button"
+                  onClick={() => navigate('/feed', { state: { roomId: item.groupId } })}
+                  className="w-full text-left p-0 border-0 bg-transparent"
+                >
+                  <figure className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 m-0 mb-2">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      // 사진이 없는 방 — 안내 문구 표시
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-1">
+                        <span className="text-2xl">📷</span>
+                        <span className="text-[10px] text-gray-400">사진이 없어요</span>
+                      </div>
+                    )}
+                    <span className="absolute bottom-2 right-2 text-gray-300">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                      </svg>
+                    </span>
+                  </figure>
+                  <p className="text-[13px] font-bold text-gray-900 m-0">{item.groupName}</p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </main>
   )

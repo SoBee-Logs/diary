@@ -13,7 +13,13 @@ export default function CameraPage() {
   const [imageFile, setImageFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [loadingStep, setLoadingStep] = useState('')  // 'upload' | 'analyze'
   const [rooms, setRooms] = useState([])
+  // VLM 분석 상태 — 사진 선택 즉시 백그라운드 분석
+  const [vlmData, setVlmData] = useState(null)
+  const [vlmLoading, setVlmLoading] = useState(false)
+  // VLM Promise 참조 — handleNext에서 분석 완료까지 실제로 await하기 위해 사용
+  const vlmPromiseRef = useRef(null)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
@@ -44,11 +50,41 @@ export default function CameraPage() {
     )
   }
 
+  // 사진 선택 즉시 VLM 분석 실행 — 사용자가 기분/모임 선택하는 동안 백그라운드 처리
+  // Promise를 ref에 저장해 handleNext에서 완료될 때까지 실제로 await 가능하게 함
+  const runVlmAnalysis = (file) => {
+    setVlmLoading(true)
+    setVlmData(null)
+
+    const promise = (async () => {
+      try {
+        const formData = new FormData()
+        formData.append('image', file)
+        const res = await fetch('/api/vlm/analyze', { method: 'POST', body: formData })
+        if (res.ok) {
+          const data = await res.json()
+          setVlmData(data)
+          return data   // handleNext에서 await 시 결과값으로 받음
+        }
+        return null
+      } catch {
+        // VLM 실패해도 사진 선택/업로드는 계속 진행
+        return null
+      } finally {
+        setVlmLoading(false)
+      }
+    })()
+
+    vlmPromiseRef.current = promise  // Promise 보존
+  }
+
   const handleImageChange = (e) => {
     const file = e.target.files[0]
     if (!file) return
     setImageFile(file)
     setPreviewUrl(URL.createObjectURL(file))
+    // 사진 선택과 동시에 VLM 분석 시작
+    runVlmAnalysis(file)
   }
 
   const handleNext = async () => {
@@ -56,9 +92,11 @@ export default function CameraPage() {
 
     setIsLoading(true)
     try {
-      const formData = new FormData()
       const token = localStorage.getItem("token")
 
+      // ① 사진 업로드
+      setLoadingStep('upload')
+      const formData = new FormData()
       formData.append('image', imageFile)
       formData.append('takenAt', new Date().toISOString())
       formData.append('latitude', '37.5665')
@@ -74,8 +112,39 @@ export default function CameraPage() {
       })
 
       if (!res.ok) throw new Error('업로드 실패')
-
       const result = await res.json()
+
+      // ② VLM 결과 저장 + 결제 내역 매핑 (persona_transaction 생성)
+      // VLM이 아직 분석 중이면 Promise가 resolve될 때까지 실제로 대기
+      let finalVlmData = vlmData
+      if (vlmLoading && vlmPromiseRef.current) {
+        setLoadingStep('analyze')
+        finalVlmData = await vlmPromiseRef.current  // 진짜로 완료까지 기다림
+      }
+
+      // 디버그: VLM 데이터 확인
+      console.log('[VLM] finalVlmData:', finalVlmData)
+      console.log('[VLM] photoId:', result.photoId)
+
+      if (result.photoId && finalVlmData?.category) {
+        try {
+          const vlmSaveRes = await fetch(`/api/photos/${result.photoId}/vlm-result`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(finalVlmData),
+          })
+          // 디버그: VLM 저장 응답 확인
+          const vlmSaveBody = await vlmSaveRes.json().catch(() => null)
+          console.log('[VLM] 저장 응답 status:', vlmSaveRes.status, '| body:', vlmSaveBody)
+        } catch (e) {
+          console.error('[VLM] 저장 요청 실패:', e)
+        }
+      } else {
+        console.warn('[VLM] skip 이유 — photoId:', result.photoId, '| category:', finalVlmData?.category)
+      }
 
       navigate('/consumption-log', {
         state: {
@@ -84,6 +153,7 @@ export default function CameraPage() {
           imageUrl: result.imageUrl,
           selectedRooms,
           photoId: result.photoId,
+          imageFile,
         },
       })
     } catch (err) {
@@ -91,6 +161,7 @@ export default function CameraPage() {
       console.error(err)
     } finally {
       setIsLoading(false)
+      setLoadingStep('')
     }
   }
 
@@ -135,6 +206,62 @@ export default function CameraPage() {
             onChange={handleImageChange}
           />
         </figure>
+
+        {/* VLM 분석 결과 카드 — 사진 선택 직후 표시 */}
+        {(vlmLoading || vlmData) && (
+          <div className="rounded-2xl bg-[#F0F7FF] border border-sky-100 px-4 py-3">
+            {vlmLoading ? (
+              <div className="flex items-center gap-2 text-sky-500">
+                <span className="w-3.5 h-3.5 border-2 border-sky-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                <span className="text-[12px] font-medium">AI가 사진 분석 중...</span>
+              </div>
+            ) : (
+              <>
+                <p className="text-[11px] font-bold text-sky-600 mb-2">🤖 AI 분석 결과</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                  {vlmData.category && (
+                    <div className="text-[11px] text-gray-600">
+                      <span className="text-gray-400">카테고리</span>
+                      <span className="block font-semibold text-gray-800">{vlmData.category}</span>
+                    </div>
+                  )}
+                  {vlmData.item_name && (
+                    <div className="text-[11px] text-gray-600">
+                      <span className="text-gray-400">품목</span>
+                      <span className="block font-semibold text-gray-800">{vlmData.item_name}</span>
+                    </div>
+                  )}
+                  {vlmData.price && (
+                    <div className="text-[11px] text-gray-600">
+                      <span className="text-gray-400">추정 가격</span>
+                      <span className="block font-semibold text-gray-800">{vlmData.price.toLocaleString()}원</span>
+                    </div>
+                  )}
+                  {(vlmData.store_name || vlmData.location_type) && (
+                    <div className="text-[11px] text-gray-600">
+                      <span className="text-gray-400">장소</span>
+                      <span className="block font-semibold text-gray-800">
+                        {[vlmData.location_type, vlmData.store_name].filter(Boolean).join(' · ')}
+                      </span>
+                    </div>
+                  )}
+                  {vlmData.taken_at && (
+                    <div className="text-[11px] text-gray-600">
+                      <span className="text-gray-400">촬영 시각</span>
+                      <span className="block font-semibold text-gray-800">{vlmData.taken_at}</span>
+                    </div>
+                  )}
+                  {vlmData.address && (
+                    <div className="text-[11px] text-gray-600 col-span-2">
+                      <span className="text-gray-400">위치</span>
+                      <span className="block font-semibold text-gray-800 line-clamp-1">{vlmData.address}</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         <label className="block text-left">
           <span className="text-[15px] font-bold text-gray-900 mb-2 block">텍스트</span>
@@ -205,7 +332,9 @@ export default function CameraPage() {
           disabled={selectedRooms.length === 0 || !imageFile || isLoading}
           className="w-full py-3.5 rounded-2xl bg-[#38BDF8] text-white font-bold text-[15px] disabled:opacity-40 mt-2"
         >
-          {isLoading ? '업로드 중...' : '다음'}
+          {isLoading
+            ? (loadingStep === 'analyze' ? '분석 중...' : '업로드 중...')
+            : '다음'}
         </button>
       </section>
     </main>
