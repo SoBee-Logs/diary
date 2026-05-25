@@ -1,8 +1,26 @@
 import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
 import RoomTabs from '../components/common/RoomTabs'
 import StatusBar from '../components/common/StatusBar'
+import { CURRENT_USER } from '../constants/rooms'
 
+// API 응답(DiaryFeedItemResponse)을 FeedPost가 사용하는 형태로 변환
+const mapDiaryToPost = (item) => ({
+  id: item.diaryId,
+  title: item.title || '무제',
+  // diaryLines가 비어있으면 subtitle을 한 줄로 표시
+  diaryLines: item.diaryLines?.length > 0
+    ? item.diaryLines
+    : [item.subtitle].filter(Boolean),
+  date: item.date || '',
+  authorNickname: item.authorName || '익명',
+  // 개인 아바타 없음 — 추후 B팀 페르소나 이미지 합칠 때 이 값만 교체하면 됨
+  avatarUrl: CURRENT_USER.avatarUrl,
+  personaTitle: item.roomLabel || '',
+  imageUrl: item.imageUrl || '',
+  liked: false,
+  likes: item.likes ?? 0,
+  roomId: `room_${item.roomId}`, // RoomTabs의 id 형식(room_N)에 맞게 변환
+})
 
 function FeedPost({ post, onToggleLike }) {
   return (
@@ -15,9 +33,7 @@ function FeedPost({ post, onToggleLike }) {
         />
         <span className="flex-1 min-w-0 text-left">
           <span className="block text-sm font-bold text-gray-900">{post.authorNickname}</span>
-          <span className="block text-xs text-gray-500 truncate">
-            {post.personaTitle}
-          </span>
+          <span className="block text-xs text-gray-500 truncate">{post.personaTitle}</span>
         </span>
       </header>
 
@@ -45,9 +61,7 @@ function FeedPost({ post, onToggleLike }) {
       <section className="px-4 py-3 text-left">
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="text-base font-bold text-gray-900 m-0">{post.title}</h3>
-          <time className="text-[10px] text-gray-400 shrink-0 whitespace-nowrap">
-            {post.date}
-          </time>
+          <time className="text-[10px] text-gray-400 shrink-0 whitespace-nowrap">{post.date}</time>
         </div>
         {post.diaryLines.map((line, i) => (
           <p key={i} className="text-sm text-gray-700 leading-relaxed m-0 mb-1">
@@ -63,29 +77,37 @@ function FeedPost({ post, onToggleLike }) {
 }
 
 export default function Feed() {
-  const location = useLocation()
-  const [activeRoom, setActiveRoom] = useState('room1')
+  // RoomTabs가 mount 시 onChange로 첫 번째 방 ID를 설정해 줌 — null로 시작
+  const [activeRoom, setActiveRoom] = useState(null)
   const [posts, setPosts] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
 
+  // activeRoom이 바뀔 때마다 해당 방의 일기 목록 DB 조회
   useEffect(() => {
-    if (location.state?.roomId) {
-      setActiveRoom(location.state.roomId)
-    }
-    const incoming = [
-      ...(location.state?.newDiaries ?? []),
-      ...(location.state?.newDiary ? [location.state.newDiary] : []),
-    ]
-    if (incoming.length === 0) return
-    setPosts((prev) => {
-      const ids = new Set(prev.map((p) => p.id))
-      const fresh = incoming.filter((d) => !ids.has(d.id))
-      return fresh.length ? [...fresh, ...prev] : prev
-    })
-    const last = incoming[incoming.length - 1]
-    if (last?.roomId) setActiveRoom(last.roomId)
-  }, [location.state])
+    // room_N 형식 검증 — RoomTabs가 설정하기 전(null 등)은 skip
+    if (!activeRoom || !activeRoom.startsWith('room_')) return
 
-  const filtered = posts.filter((p) => p.roomId === activeRoom)
+    const groupId = activeRoom.replace('room_', '')
+
+    const fetchDiaries = async () => {
+      setIsLoading(true)
+      try {
+        const token = localStorage.getItem('token')
+        const res = await fetch(`/api/diary/list?groupId=${groupId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        setPosts(data.map(mapDiaryToPost))
+      } catch (err) {
+        console.error('일기 목록 조회 실패', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchDiaries()
+  }, [activeRoom])
 
   const handleToggleLike = (id) => {
     setPosts((prev) =>
@@ -107,13 +129,15 @@ export default function Feed() {
       <RoomTabs activeRoom={activeRoom} onChange={setActiveRoom} showAdd />
 
       <section className="py-3 pb-4">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <p className="text-center text-sm text-gray-400 py-12">불러오는 중...</p>
+        ) : posts.length === 0 ? (
           <p className="text-center text-sm text-gray-400 py-12">
             이 모임방에 아직 일기가 없어요
           </p>
         ) : (
-          filtered.map((post) => (
-            <FeedPost key={post.roomId} post={post} onToggleLike={handleToggleLike} />
+          posts.map((post) => (
+            <FeedPost key={post.id} post={post} onToggleLike={handleToggleLike} />
           ))
         )}
       </section>

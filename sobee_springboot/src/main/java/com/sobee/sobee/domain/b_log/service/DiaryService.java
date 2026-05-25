@@ -1,5 +1,8 @@
 package com.sobee.sobee.domain.b_log.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sobee.sobee.domain.b_log.dto.DiaryFeedItemResponse;
 import com.sobee.sobee.domain.b_log.dto.DiaryGenerateRequest;
 import com.sobee.sobee.domain.b_log.dto.DiaryGenerateResponse;
 import com.sobee.sobee.domain.b_log.dto.DiarySaveRequest;
@@ -7,6 +10,8 @@ import com.sobee.sobee.domain.b_log.entity.*;
 import com.sobee.sobee.domain.b_log.repository.*;
 import com.sobee.sobee.domain.group.entity.Group;
 import com.sobee.sobee.domain.group.repository.GroupRepository;
+import com.sobee.sobee.domain.user.entity.User;
+import com.sobee.sobee.domain.user.repository.UserRepository;
 import lombok.*;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -27,8 +32,12 @@ public class DiaryService {
     private final PhotoMetadataRepository photoMetadataRepository;
     private final EmotionsTextRepository emotionsTextRepository;
     private final PhotoVlmResultRepository photoVlmResultRepository;
+    private final PersonaTransactionRepository personaTransactionRepository;
     private final DiaryRepository diaryRepository;
     private final DiaryPhotoRepository diaryPhotoRepository;
+    private final PhotoRepository photoRepository;
+    private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;  // diaryContent JSON 파싱용
 
     // FastAPI 서버 주소 — Spring Boot → FastAPI 서버 간 내부 HTTP 통신
     private static final String FASTAPI_DIARY_URL = "http://localhost:8000/api/diary/generate";
@@ -51,17 +60,17 @@ public class DiaryService {
         // 해당 그룹에 속한 모든 photo_groups 조회
         List<PhotoGroups> pgList = photoGroupsRepository.findByIdGroupId(req.getGroupId());
 
-        // 오늘 날짜에 찍힌 사진만 필터링 (photo_metadata.taken_at 기준 + 본인 사진만)
+        // 오늘 날짜 + 본인 사진 + 결제 매핑된(persona_transaction 존재) 사진만 필터링
+        // → 일기는 결제가 확인된 소비 기록만을 소재로 써야 하므로 매핑 여부로 필터
         List<Photo> todayPhotos = pgList.stream()
                 .map(PhotoGroups::getPhoto)
-                .filter(photo -> photo.getUserId().equals(userId))  // 본인 사진만
-                .filter(photo -> {
-                    return photoMetadataRepository
-                            .findByPhotoPhotoId(photo.getPhotoId())
-                            .map(meta -> meta.getTakenAt() != null
-                                    && meta.getTakenAt().toLocalDate().equals(targetDate))
-                            .orElse(false);
-                })
+                .filter(photo -> photo.getUserId().equals(userId))
+                .filter(photo -> photoMetadataRepository
+                        .findByPhotoPhotoId(photo.getPhotoId())
+                        .map(meta -> meta.getTakenAt() != null
+                                && meta.getTakenAt().toLocalDate().equals(targetDate))
+                        .orElse(false))
+                .filter(photo -> personaTransactionRepository.existsByPhotoId(photo.getPhotoId()))
                 .collect(Collectors.toList());
 
         // 사진이 없으면 기본 일기 반환
@@ -110,21 +119,31 @@ public class DiaryService {
                 .findFirst()
                 .orElse(null);
 
-        // 소비 기분 이모지 결정 (요청 파라미터 우선, 없으면 DB emotions 사용)
-        String moodEmoji = req.getMood() != null ? req.getMood()
-                : (latestEmotion != null && latestEmotion.getEmoji() != null
+        // 소비 기분 이모지 — navigation state 아닌 DB emotions_text에서만 읽음
+        String moodEmoji = latestEmotion != null && latestEmotion.getEmoji() != null
                 ? latestEmotion.getEmoji().getEmoji()
-                : null);
+                : null;
 
-        // FastAPI 요청 객체 구성
+        // 결제 매핑된 사진 ID 목록 (DiaryResult 💳 배지 + FastAPI matched 여부에 활용)
+        List<Long> matchedPhotoIds = photoIds.stream()
+                .filter(pid -> personaTransactionRepository.existsByPhotoId(pid))
+                .collect(Collectors.toList());
+        boolean matched = !matchedPhotoIds.isEmpty();
+
+        // FastAPI 요청 객체 구성 (3가지 핵심 재료 포함)
         FastApiDiaryRequest faReq = FastApiDiaryRequest.builder()
+                // 재료 1: VLM 분석 결과 + 결제 매핑 여부
                 .item_name(bestVlm != null ? bestVlm.getVlmItemName() : null)
                 .category(bestVlm != null ? bestVlm.getVlmCategory() : null)
                 .price(bestVlm != null && bestVlm.getVlmPriceEstimate() != null
                         ? bestVlm.getVlmPriceEstimate().intValue() : null)
                 .store_name(bestVlm != null ? bestVlm.getVlmStoreName() : null)
                 .description(bestVlm != null ? bestVlm.getVlmDescription() : null)
+                .matched(matched)
+                // 재료 2: 사용자 감정 데이터 (이모지 + 텍스트)
                 .mood(moodEmoji)
+                .emotion_text(latestEmotion != null ? latestEmotion.getText() : null)
+                // 재료 3: 모임방 특징 정보
                 .tags(Collections.singletonList("#" + group.getGroupName()))
                 .group_description(group.getGroupDescription())
                 .build();
@@ -145,6 +164,7 @@ public class DiaryService {
                     .roomLabel(group.getGroupName())
                     .imageUrls(imageUrls)
                     .photoIds(photoIds)
+                    .matchedPhotoIds(matchedPhotoIds)
                     .build();
         }
 
@@ -157,6 +177,7 @@ public class DiaryService {
                 .roomLabel(group.getGroupName())
                 .imageUrls(imageUrls)
                 .photoIds(photoIds)
+                .matchedPhotoIds(matchedPhotoIds)
                 .build();
     }
 
@@ -173,8 +194,8 @@ public class DiaryService {
                 .build();
         diaryRepository.save(diary);
 
-        // diary_photos 에 사진 연결 저장
-        if (req.getPhotoIds() != null) {
+        // diary_photos에 사진 연결 저장 (photoIds가 null이거나 비어있어도 안전하게 처리)
+        if (req.getPhotoIds() != null && !req.getPhotoIds().isEmpty()) {
             for (Long photoId : req.getPhotoIds()) {
                 DiaryPhoto diaryPhoto = DiaryPhoto.builder()
                         .id(new DiaryPhotoId(photoId, diary.getDiaryId(), userId))
@@ -182,6 +203,69 @@ public class DiaryService {
                 diaryPhotoRepository.save(diaryPhoto);
             }
         }
+    }
+
+    // ──────────────────────────────────────────────
+    // ③ 피드 조회: groupId 기준으로 저장된 일기 목록 반환 (최신순)
+    // ──────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public List<DiaryFeedItemResponse> getDiaryList(Long groupId) {
+
+        List<Diary> diaries = diaryRepository.findByGroupIdOrderByCreatedAtDesc(groupId);
+        Group group = groupRepository.findById(groupId).orElse(null);
+
+        return diaries.stream().map(diary -> {
+
+            // 작성자 이름 조회 (없으면 기본값)
+            User author = userRepository.findById(diary.getUserId()).orElse(null);
+            String authorName = author != null ? author.getName() : "익명";
+
+            // diary_photos → photos 조회로 사진 URL 목록 구성
+            List<DiaryPhoto> diaryPhotos = diaryPhotoRepository
+                    .findByIdDiaryId(diary.getDiaryId());
+            List<String> imageUrls = diaryPhotos.stream()
+                    .map(dp -> photoRepository.findById(dp.getId().getPhotoId())
+                            .map(Photo::getImageUrl)
+                            .orElse(null))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+
+            // diaryContent JSON 파싱 ({"title":"...","subtitle":"...","lines":[...]})
+            String title    = "";
+            String subtitle = "";
+            List<String> lines = Collections.emptyList();
+            if (diary.getDiaryContent() != null) {
+                try {
+                    JsonNode node = objectMapper.readTree(diary.getDiaryContent());
+                    title    = node.path("title").asText("");
+                    subtitle = node.path("subtitle").asText("");
+                    JsonNode linesNode = node.path("lines");
+                    if (linesNode.isArray()) {
+                        lines = new ArrayList<>();
+                        for (JsonNode ln : linesNode) lines.add(ln.asText());
+                    }
+                } catch (Exception ignored) {
+                    // JSON 파싱 실패 시 빈 값으로 처리
+                }
+            }
+
+            return DiaryFeedItemResponse.builder()
+                    .diaryId(diary.getDiaryId())
+                    .title(title)
+                    .subtitle(subtitle)
+                    .diaryLines(lines)
+                    .date(diary.getCreatedAt() != null
+                            ? diary.getCreatedAt().toLocalDate().toString() : "")
+                    .authorName(authorName)
+                    .authorId(diary.getUserId())
+                    .imageUrls(imageUrls)
+                    .imageUrl(imageUrls.isEmpty() ? null : imageUrls.get(0))
+                    .roomId(diary.getGroupId())
+                    .roomLabel(group != null ? group.getGroupName() : "")
+                    .likes(diary.getLikes() != null ? diary.getLikes() : 0)
+                    .build();
+
+        }).collect(Collectors.toList());
     }
 
     // ──────────────────────────────────────────────
@@ -215,12 +299,17 @@ public class DiaryService {
     @AllArgsConstructor
     @NoArgsConstructor
     static class FastApiDiaryRequest {
+        // 재료 1: VLM 분석 결과 + 결제 매핑 여부
         private String item_name;
         private String category;
         private Integer price;
         private String store_name;
         private String description;
+        private Boolean matched;       // 결제 내역 매핑 성공 여부
+        // 재료 2: 사용자 감정 데이터
         private String mood;
+        private String emotion_text;   // 사용자가 사진과 함께 입력한 텍스트
+        // 재료 3: 모임방 특징 정보
         private List<String> tags;
         private String group_description;
     }

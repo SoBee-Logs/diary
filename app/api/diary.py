@@ -31,8 +31,9 @@ DIARY_PROMPT_TEMPLATE = """[분량 제한 — 절대 준수]
 - 카테고리: {category}
 - 금액: {price}원
 - 가게: {store_name}
-- 설명: {description}
+- AI 분석 설명: {description}
 - 소비 기분: {mood_label} ({mood})
+- 사용자 메모: {emotion_text}
 - 모임방 특징: {group_description}
 
 반드시 아래 JSON 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마.
@@ -66,6 +67,8 @@ async def generate_diary(req: DiaryRequest) -> DiaryResponse:
         description=req.description or "",
         mood=req.mood or "",
         mood_label=mood_label,
+        # DB emotions_text.text — 없으면 빈 문자열로 대체
+        emotion_text=req.emotion_text or "없음",
         group_description=req.group_description or "일반 소비 모임",
     )
 

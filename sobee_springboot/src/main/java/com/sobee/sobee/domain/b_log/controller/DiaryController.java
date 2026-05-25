@@ -1,5 +1,6 @@
 package com.sobee.sobee.domain.b_log.controller;
 
+import com.sobee.sobee.domain.b_log.dto.DiaryFeedItemResponse;
 import com.sobee.sobee.domain.b_log.dto.DiaryGenerateRequest;
 import com.sobee.sobee.domain.b_log.dto.DiaryGenerateResponse;
 import com.sobee.sobee.domain.b_log.dto.DiarySaveRequest;
@@ -9,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/diary")
@@ -47,5 +50,17 @@ public class DiaryController {
         Long userId = extractUserId(authHeader);
         diaryService.saveDiary(request, userId);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    // GET /api/diary/list?groupId=xxx
+    // 특정 모임방의 일기 목록 최신순 조회 — 피드 화면 DB 연동용
+    @GetMapping("/list")
+    public ResponseEntity<List<DiaryFeedItemResponse>> getDiaryList(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam Long groupId
+    ) {
+        extractUserId(authHeader); // 인증 확인만 수행
+        List<DiaryFeedItemResponse> response = diaryService.getDiaryList(groupId);
+        return ResponseEntity.ok(response);
     }
 }

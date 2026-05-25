@@ -63,8 +63,9 @@ export default function DiaryResult() {
     }
   }
 
+  // ROOMS 상수 대신 diaries의 roomLabel 사용 — 실제 DB groupId(숫자)와 매핑 가능
   const selectedRoomLabels = includedRoomIds
-    .map((id) => ROOMS.find((r) => r.id === id)?.label)
+    .map((id) => diaries.find((d) => d.roomId === id)?.roomLabel ?? null)
     .filter(Boolean)
 
   const modalMessage =
@@ -169,6 +170,14 @@ export default function DiaryResult() {
           style={{ borderColor: SKY_BLUE }}
         >
           <img src={slides[imageSlide]} alt="" className="w-full aspect-[4/3] object-cover" />
+
+          {/* 현재 슬라이드 사진이 결제 매핑된 경우 💳 배지 표시 */}
+          {diary.matchedPhotoIds?.includes(diary.photoIds?.[imageSlide]) && (
+            <span className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+              💳 매핑됨
+            </span>
+          )}
+
           <button
             type="button"
             onClick={() => setImageSlide((s) => Math.max(0, s - 1))}
