@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { getDiariesForRooms } from '../data/mockDiaries'
 import { CURRENT_USER } from '../constants/rooms'
 
 const LOADING_MESSAGES = [
@@ -27,29 +26,70 @@ export default function LoadingPage() {
   const selectedRooms =
     location.state?.selectedRooms?.length > 0
       ? location.state.selectedRooms
-      : ['room1', 'room2']
+      : []
+
+  const imageFile = location.state?.imageFile ?? null
+  const photoId   = location.state?.photoId   ?? null
+  const mood      = location.state?.mood       ?? null
 
   useEffect(() => {
+    // 로딩 메시지 순환 타이머
     const messageTimer = setInterval(() => {
       setMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length)
     }, 1000)
 
-    const doneTimer = setTimeout(() => {
-      const diaries = getDiariesForRooms(selectedRooms, {
-        imageUrl,
-        mood: location.state?.mood,
-      })
+    // 일기 생성 파이프라인 (VLM은 CameraPage에서 이미 완료됨)
+    const runPipeline = async () => {
+      const token = localStorage.getItem('token')
+      const today = new Date().toISOString().slice(0, 10) // "yyyy-MM-dd"
+
+      // 선택한 방별로 Spring Boot /api/diary/generate 호출
+      // Spring Boot가 내부적으로 DB 사진 수집 + FastAPI LLM 호출을 통합 처리
+      const diaries = []
+      for (const roomId of selectedRooms) {
+        try {
+          const res = await fetch('/api/diary/generate', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              groupId: roomId,
+              date:    today,
+              mood:    mood,
+            }),
+          })
+          // 에러 응답(400/500) 시 해당 방 skip
+          if (!res.ok) continue
+          const data = await res.json()
+          diaries.push({
+            title:      data.title,
+            subtitle:   data.subtitle,
+            diaryLines: data.diaryLines,   // Spring Boot camelCase
+            tags:       data.tags,
+            roomId:     data.roomId,
+            roomLabel:  data.roomLabel,
+            imageUrls:  data.imageUrls,    // 다중 사진 URL 배열
+            photoIds:   data.photoIds,     // DB 저장 시 필요한 사진 ID 목록
+            imageUrl:   data.imageUrls?.[0] ?? imageUrl, // 하위 호환용
+          })
+        } catch {
+          // 특정 방 일기 생성 실패 시 해당 방만 skip
+        }
+      }
+
+      clearInterval(messageTimer)
       navigate('/diary-result', {
         replace: true,
         state: { diaries, selectedRooms, roomIndex: 0 },
       })
-    }, 3000)
-
-    return () => {
-      clearInterval(messageTimer)
-      clearTimeout(doneTimer)
     }
-  }, [navigate, location.state, imageUrl, selectedRooms])
+
+    runPipeline()
+
+    return () => clearInterval(messageTimer)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <main className="relative flex flex-col items-center justify-center min-h-full bg-gradient-to-b from-indigo-50 via-white to-indigo-50 overflow-hidden px-6">

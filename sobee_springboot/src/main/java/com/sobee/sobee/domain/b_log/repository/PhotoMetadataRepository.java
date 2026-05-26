@@ -9,4 +9,6 @@ import java.util.Optional;
 
 public interface PhotoMetadataRepository extends JpaRepository<PhotoMetadata, Long> {
     Optional<PhotoMetadata> findByPhoto(Photo photo);
+    // VLM 매핑 시 photoId로 직접 조회용
+    Optional<PhotoMetadata> findByPhotoPhotoId(Long photoId);
 }

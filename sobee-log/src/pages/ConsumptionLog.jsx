@@ -60,7 +60,8 @@ export default function ConsumptionLog() {
         })
         if (!res.ok) throw new Error('조회 실패')
         const data = await res.json()
-        setPhotos(data.photos)
+        // 최근 업로드 순 (내림차순) — 배열 역순 정렬
+        setPhotos([...(data.photos ?? [])].reverse())
       } catch (err) {
         console.error(err)
       } finally {
@@ -180,12 +181,22 @@ export default function ConsumptionLog() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <figure className="m-0 rounded-xl overflow-hidden border border-gray-200 aspect-[5/3] bg-gray-100">
+                    {/* 결제 매핑 여부 표시: 성공 시 초록 / 실패 시 회색 뱃지 */}
+                    <figure className={`m-0 rounded-xl overflow-hidden aspect-[5/3] bg-gray-100 relative ${photo.mapped ? 'border-2 border-emerald-400' : 'border border-gray-200'}`}>
                       <img
                         src={photo.url}
                         alt=""
                         className="w-full h-full object-cover"
                       />
+                      {photo.mapped ? (
+                        <span className="absolute top-1.5 right-1.5 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                          💳 매핑됨
+                        </span>
+                      ) : (
+                        <span className="absolute top-1.5 right-1.5 flex items-center gap-1 bg-gray-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                          🔍 미매핑
+                        </span>
+                      )}
                     </figure>
                     {photo.text && (
                       <p className="text-[11px] text-gray-500 mt-1.5 mb-0 leading-relaxed line-clamp-2">

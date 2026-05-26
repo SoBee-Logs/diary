@@ -3,6 +3,8 @@ package com.sobee.sobee.domain.b_log.controller;
 import com.sobee.sobee.domain.b_log.dto.PhotoListResponse;
 import com.sobee.sobee.domain.b_log.dto.PhotoUploadRequest;
 import com.sobee.sobee.domain.b_log.dto.PhotoUploadResponse;
+import com.sobee.sobee.domain.b_log.dto.PhotoVlmResultRequest;
+import com.sobee.sobee.domain.b_log.dto.PhotoVlmResultResponse;
 import com.sobee.sobee.domain.b_log.service.PhotoService;
 import com.sobee.sobee.global.jwt.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +15,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -76,5 +80,31 @@ public class PhotoController {
         LocalDate localDate = LocalDate.parse(date);
         PhotoListResponse response = photoService.getPhotosByDate(userId, localDate);
         return ResponseEntity.ok(response);
+    }
+
+    // 특정 그룹의 가장 최신 사진 URL 반환 — 홈 피드 미리보기용
+    @GetMapping("/group/{groupId}/latest")
+    public ResponseEntity<Map<String, String>> getLatestPhotoByGroup(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long groupId
+    ) {
+        // 인증 확인 (userId는 현재 미사용, 향후 본인 사진만 필터링 시 활용 가능)
+        extractUserId(authHeader);
+        String imageUrl = photoService.getLatestPhotoUrlByGroup(groupId);
+        Map<String, String> result = new HashMap<>();
+        result.put("imageUrl", imageUrl);
+        return ResponseEntity.ok(result);
+    }
+
+    // VLM 분석 결과 저장 + 결제 내역 매핑 — 프론트 CameraPage에서 호출
+    @PostMapping("/{photoId}/vlm-result")
+    public ResponseEntity<PhotoVlmResultResponse> saveVlmResult(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long photoId,
+            @RequestBody PhotoVlmResultRequest request
+    ) {
+        Long userId = extractUserId(authHeader);
+        PhotoVlmResultResponse response = photoService.saveVlmResult(photoId, userId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

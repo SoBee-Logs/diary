@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import StatusBar from '../components/common/StatusBar'
 import { ROOMS, SKY_BLUE } from '../constants/rooms'
-import { getDiariesForRooms, getGeneratedDiary } from '../data/mockDiaries'
 
 export default function DiaryResult() {
   const navigate = useNavigate()
@@ -14,37 +13,41 @@ export default function DiaryResult() {
       : ['room1', 'room2']
 
   const [roomIndex, setRoomIndex] = useState(location.state?.roomIndex ?? 0)
-  const [diaries, setDiaries] = useState(
-    () =>
-      location.state?.diaries ??
-      getDiariesForRooms(selectedRooms, {
-        imageUrl: location.state?.imageUrl,
-      }),
-  )
+  const [diaries, setDiaries] = useState(() => location.state?.diaries ?? [])
   const [imageSlide, setImageSlide] = useState(0)
   const [includedRoomIds, setIncludedRoomIds] = useState([])
   const [showConfirmModal, setShowConfirmModal] = useState(false)
 
   const diary = diaries[roomIndex]
+  // diaryLines가 null/undefined여도 안전하게 처리
   const bodyText = diary
-    ? [diary.subtitle, ...diary.diaryLines].filter(Boolean).join('\n\n')
+    ? [diary.subtitle, ...(diary.diaryLines ?? [])].filter(Boolean).join('\n\n')
     : ''
 
-  useEffect(() => {
-    if (!diary) {
-      navigate('/camera', { replace: true })
-    }
-  }, [diary, navigate])
-
-  if (!diary) return null
-
-  const handleRegenerate = () => {
-    const fresh = getGeneratedDiary({
-      roomId: diary.roomId,
-      imageUrl: diary.imageUrl,
-    })
-    setDiaries((prev) => prev.map((d, i) => (i === roomIndex ? fresh : d)))
+  // diaries가 비어있으면 일기 생성 실패 화면 표시 (카메라로 이동하지 않음)
+  if (diaries.length === 0) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-full bg-[#FAFAFA] gap-6 px-6">
+        <StatusBar />
+        <span className="text-5xl">😢</span>
+        <h2 className="text-[18px] font-bold text-gray-800 text-center m-0">일기 생성에 실패했어요</h2>
+        <p className="text-[13px] text-gray-500 text-center leading-relaxed m-0">
+          서버가 응답하지 않거나<br />오늘 사진이 없을 수 있어요.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/camera', { replace: true })}
+          className="px-8 py-3.5 rounded-2xl text-white text-[14px] font-bold"
+          style={{ backgroundColor: '#38BDF8' }}
+        >
+          다시 시도하기
+        </button>
+      </main>
+    )
   }
+
+  // 재생성 버튼 — 현재 버전에서는 비활성 (추후 구현 예정)
+  const handleRegenerate = () => {}
 
   const finishRoom = (include) => {
     const roomId = selectedRooms[roomIndex]
@@ -60,8 +63,9 @@ export default function DiaryResult() {
     }
   }
 
+  // ROOMS 상수 대신 diaries의 roomLabel 사용 — 실제 DB groupId(숫자)와 매핑 가능
   const selectedRoomLabels = includedRoomIds
-    .map((id) => ROOMS.find((r) => r.id === id)?.label)
+    .map((id) => diaries.find((d) => d.roomId === id)?.roomLabel ?? null)
     .filter(Boolean)
 
   const modalMessage =
@@ -69,13 +73,44 @@ export default function DiaryResult() {
       ? `선택한 ${selectedRoomLabels.join(', ')}의 일기를 올리시겠습니까?`
       : '선택한 모임방이 없습니다. 피드로 이동하시겠습니까?'
 
-  const handleConfirmUpload = () => {
+  const handleConfirmUpload = async () => {
     const toUpload = diaries.filter((d) => includedRoomIds.includes(d.roomId))
     setShowConfirmModal(false)
+
+    // 선택된 일기를 diary + diary_photos 테이블에 저장
+    const token = localStorage.getItem('token')
+    for (const d of toUpload) {
+      try {
+        // diary_content: JSON 직렬화 (VARCHAR 200 이내)
+        const diaryContent = JSON.stringify({
+          title:    d.title,
+          subtitle: d.subtitle,
+          lines:    d.diaryLines,
+        })
+        await fetch('/api/diary/save', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            groupId:      d.roomId,
+            diaryContent: diaryContent,
+            photoIds:     d.photoIds ?? [],
+          }),
+        })
+      } catch {
+        // 저장 실패해도 피드 이동은 계속 진행
+      }
+    }
+
     navigate('/feed', { state: { newDiaries: toUpload } })
   }
 
-  const slides = [diary.imageUrl, diary.imageUrl, diary.imageUrl, diary.imageUrl]
+  // 다중 사진 슬라이드 — imageUrls 배열 우선, 없으면 imageUrl 단일 사용
+  const slides = diary.imageUrls?.length > 0
+    ? diary.imageUrls
+    : [diary.imageUrl].filter(Boolean)
 
   return (
     <main className="flex flex-col min-h-full bg-[#FAFAFA] relative">
@@ -135,6 +170,14 @@ export default function DiaryResult() {
           style={{ borderColor: SKY_BLUE }}
         >
           <img src={slides[imageSlide]} alt="" className="w-full aspect-[4/3] object-cover" />
+
+          {/* 현재 슬라이드 사진이 결제 매핑된 경우 💳 배지 표시 */}
+          {diary.matchedPhotoIds?.includes(diary.photoIds?.[imageSlide]) && (
+            <span className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+              💳 매핑됨
+            </span>
+          )}
+
           <button
             type="button"
             onClick={() => setImageSlide((s) => Math.max(0, s - 1))}
