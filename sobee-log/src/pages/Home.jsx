@@ -263,7 +263,7 @@ export default function Home() {
           type="button"
           onClick={async () => {
             const token = localStorage.getItem("token")
-            const res = await fetch('http://localhost:8080/api/groups', {
+            const res = await fetch('/api/groups', {
               headers: { Authorization: `Bearer ${token}` },
             })
             const groups = await res.json()
