@@ -27,7 +27,7 @@ public class PersonaTransaction {
 
     // 매핑된 결제 내역 ID (transactions.payment_id)
     @Column(name = "payment_id", nullable = false, length = 255)
-    private String paymentId;
+    private Long paymentId;
 
     // 사용자 ID
     @Column(name = "user_id", nullable = false)

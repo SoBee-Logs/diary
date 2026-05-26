@@ -272,7 +272,7 @@ public class PhotoService {
         PersonaTransaction mapping = PersonaTransaction.builder()
                 .vlmId(vlmResult.getVlmId())
                 .photoId(photoId)
-                .paymentId(String.valueOf(best.getId().getPaymentId()))
+                .paymentId(best.getId().getPaymentId())
                 .userId(userId)
                 .build();
         personaTransactionRepository.save(mapping);
