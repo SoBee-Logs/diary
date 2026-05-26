@@ -38,7 +38,7 @@ export default function ConsumptionLog() {
       try {
         const token = localStorage.getItem("token")
         if (!token) return
-        const res = await fetch('http://localhost:8080/api/groups', {
+        const res = await fetch('/api/groups', {
           headers: { 'Authorization': `Bearer ${token}` },
         })
         const data = await res.json()

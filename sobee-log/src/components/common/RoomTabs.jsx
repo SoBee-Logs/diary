@@ -19,7 +19,7 @@ export default function RoomTabs({ activeRoom, onChange, showAdd = false }) {
       try {
         const token = localStorage.getItem("token")
         if (!token) return
-        const res = await fetch('http://localhost:8080/api/groups', {
+        const res = await fetch('/api/groups', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -58,7 +58,7 @@ export default function RoomTabs({ activeRoom, onChange, showAdd = false }) {
     if (!newRoomName.trim()) return alert('모임 이름을 입력해주세요!')
     try {
       const token = localStorage.getItem("token")
-      const res = await fetch('http://localhost:8080/api/groups', {
+      const res = await fetch('/api/groups', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -95,7 +95,7 @@ export default function RoomTabs({ activeRoom, onChange, showAdd = false }) {
     if (!joinCode.trim()) return alert('초대 코드를 입력해주세요!')
     try {
       const token = localStorage.getItem("token")
-      const res = await fetch(`http://localhost:8080/api/groups/join?code=${joinCode}`, {
+      const res = await fetch(`/api/groups/join?code=${joinCode}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
