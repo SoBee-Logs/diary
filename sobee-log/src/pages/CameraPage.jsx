@@ -18,6 +18,10 @@ export default function CameraPage() {
   // VLM 분석 상태 — 사진 선택 즉시 백그라운드 분석
   const [vlmData, setVlmData] = useState(null)
   const [vlmLoading, setVlmLoading] = useState(false)
+  // GPS 위치 정보 상태 — 실제 기기 좌표를 업로드 시 함께 전달하기 위해 사용
+  const [gpsCoords, setGpsCoords] = useState(null)   // { latitude, longitude } 또는 null
+  const [gpsLoading, setGpsLoading] = useState(false) // 위치 수집 중 여부
+  const [gpsError, setGpsError] = useState(null)      // 오류 메시지 또는 null
   // VLM Promise 참조 — handleNext에서 분석 완료까지 실제로 await하기 위해 사용
   const vlmPromiseRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -27,7 +31,7 @@ export default function CameraPage() {
       try {
         const token = localStorage.getItem("token")
         if (!token) return
-        const res = await fetch('http://localhost:8080/api/groups', {
+        const res = await fetch('/api/groups', {
           headers: { 'Authorization': `Bearer ${token}` },
         })
         const data = await res.json()
@@ -42,6 +46,34 @@ export default function CameraPage() {
       }
     }
     fetchMyGroups()
+  }, [])
+
+  // 컴포넌트 마운트 시 실제 기기 GPS 위치 요청
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      // GPS 자체를 지원하지 않는 환경 — 폴백 좌표(서울시청)로 대체
+      setGpsError('이 기기는 위치 정보를 지원하지 않아요. 기본 위치로 대체합니다.')
+      return
+    }
+    setGpsLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        // 성공: 실제 기기 좌표 저장
+        setGpsCoords({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        })
+        setGpsLoading(false)
+      },
+      (err) => {
+        // 실패: 권한 거부(code 1) 또는 타임아웃 — 폴백 좌표 사용 + 사용자 안내
+        let msg = '위치 정보를 가져올 수 없어요. 기본 위치로 대체합니다.'
+        if (err.code === 1) msg = '위치 권한이 거부되었어요. 기본 위치로 대체합니다.'
+        setGpsError(msg)
+        setGpsLoading(false)
+      },
+      { timeout: 10000, maximumAge: 60000, enableHighAccuracy: true }
+    )
   }, [])
 
   const toggleRoom = (roomId) => {
@@ -99,8 +131,9 @@ export default function CameraPage() {
       const formData = new FormData()
       formData.append('image', imageFile)
       formData.append('takenAt', new Date().toISOString())
-      formData.append('latitude', '37.5665')
-      formData.append('longitude', '126.9780')
+      // 실제 GPS 좌표 사용 — GPS 실패 시 서울시청 폴백 좌표 사용
+      formData.append('latitude', String(gpsCoords?.latitude ?? 37.5665))
+      formData.append('longitude', String(gpsCoords?.longitude ?? 126.9780))
       if (text) formData.append('text', text)
       formData.append('emoji', MOOD_TYPES[selectedMood])
       formData.append('groupId', selectedRooms.join(','))
@@ -206,6 +239,20 @@ export default function CameraPage() {
             onChange={handleImageChange}
           />
         </figure>
+
+        {/* GPS 위치 수집 상태 배지 — 로딩 중 또는 오류 시만 표시 */}
+        {gpsLoading && (
+          <div className="flex items-center gap-2 text-gray-500 text-[12px] px-1">
+            <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin shrink-0" />
+            <span>위치 정보를 가져오는 중...</span>
+          </div>
+        )}
+        {gpsError && (
+          <div className="flex items-center gap-2 text-amber-600 text-[12px] px-1">
+            <span>⚠️</span>
+            <span>{gpsError}</span>
+          </div>
+        )}
 
         {/* VLM 분석 결과 카드 — 사진 선택 직후 표시 */}
         {(vlmLoading || vlmData) && (
