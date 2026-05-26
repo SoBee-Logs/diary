@@ -46,8 +46,35 @@ export default function DiaryResult() {
     )
   }
 
-  // 재생성 버튼 — 현재 버전에서는 비활성 (추후 구현 예정)
-  const handleRegenerate = () => {}
+  // 일기 재생성 버튼 
+  const handleRegenerate = async () => {
+    const token = localStorage.getItem('token')
+    const today = new Date().toISOString().split('T')[0] // yyyy-MM-dd
+  
+    try {
+      const res = await fetch('/api/diary/generate', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId: diary.roomId,
+          date: today,
+        }),
+      })
+      if (!res.ok) return
+      const newDiary = await res.json()
+  
+      // 현재 방 일기만 교체
+      setDiaries((prev) =>
+        prev.map((d, i) => (i === roomIndex ? newDiary : d))
+      )
+      setImageSlide(0)
+    } catch (err) {
+      console.error('재생성 실패', err)
+    }
+  }
 
   const finishRoom = (include) => {
     const roomId = selectedRooms[roomIndex]
