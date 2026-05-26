@@ -52,29 +52,20 @@ public class DiaryService {
 
         List<PhotoGroups> pgList = photoGroupsRepository.findByIdGroupId(req.getGroupId());
 
+        // 오늘 날짜 + 본인 사진 필터 (매핑 여부 상관없이)
+        // 오늘 날짜 + 본인 사진 필터 (날짜 제한 없이)
         List<Photo> todayPhotos = pgList.stream()
                 .map(PhotoGroups::getPhoto)
                 .filter(photo -> photo.getUserId().equals(userId))
-                .filter(photo -> photoMetadataRepository
-                        .findByPhotoPhotoId(photo.getPhotoId())
-                        .map(meta -> meta.getTakenAt() != null
-                                && meta.getTakenAt().toLocalDate().equals(targetDate))
-                        .orElse(false))
+                .collect(Collectors.toList());
+
+        // 매핑된 사진만 따로 필터링 (LLM 일기 생성용)
+        List<Photo> matchedPhotos = todayPhotos.stream()
                 .filter(photo -> personaTransactionRepository.existsByPhotoId(photo.getPhotoId()))
                 .collect(Collectors.toList());
 
-        if (todayPhotos.isEmpty()) {
-            return DiaryGenerateResponse.builder()
-                    .title("조용한 하루")
-                    .subtitle("오늘은 소비 기록이 없어요")
-                    .diaryLines(Arrays.asList("기록 없는 하루도 있지", "지갑이 쉬어가는 날", "내일을 위한 아낌", "이런 날이 가끔 필요해"))
-                    .tags(Collections.singletonList("#" + group.getGroupName()))
-                    .roomId(req.getGroupId())
-                    .roomLabel(group.getGroupName())
-                    .imageUrls(Collections.emptyList())
-                    .photoIds(Collections.emptyList())
-                    .build();
-        }
+        // 일기 생성에 사용할 사진 = 매핑된 사진 우선, 없으면 빈 리스트 (방소개로만 생성)
+        List<Photo> photosForDiary = matchedPhotos.isEmpty() ? Collections.emptyList() : matchedPhotos;
 
         List<String> imageUrls = todayPhotos.stream()
                 .map(Photo::getImageUrl)
@@ -82,15 +73,19 @@ public class DiaryService {
         List<Long> photoIds = todayPhotos.stream()
                 .map(Photo::getPhotoId)
                 .collect(Collectors.toList());
+        List<Long> matchedPhotoIds = matchedPhotos.stream()
+                .map(Photo::getPhotoId)
+                .collect(Collectors.toList());
 
-        PhotoVlmResult bestVlm = todayPhotos.stream()
+        // VLM 결과 수집 (매핑된 사진 기준)
+        PhotoVlmResult bestVlm = photosForDiary.stream()
                 .map(p -> photoVlmResultRepository
                         .findFirstByPhotoIdOrderByVlmIdDesc(p.getPhotoId())
                         .orElse(null))
                 .filter(vlm -> vlm != null && vlm.getVlmCategory() != null)
                 .findFirst()
                 .orElse(
-                        todayPhotos.stream()
+                        photosForDiary.stream()
                                 .map(p -> photoVlmResultRepository
                                         .findFirstByPhotoIdOrderByVlmIdDesc(p.getPhotoId())
                                         .orElse(null))
@@ -99,6 +94,7 @@ public class DiaryService {
                                 .orElse(null)
                 );
 
+        // 감정 데이터 (오늘 사진 기준)
         EmotionsText latestEmotion = todayPhotos.stream()
                 .map(p -> emotionsTextRepository.findByPhoto(p).orElse(null))
                 .filter(Objects::nonNull)
@@ -109,9 +105,6 @@ public class DiaryService {
                 ? latestEmotion.getEmoji().getEmoji()
                 : null;
 
-        List<Long> matchedPhotoIds = photoIds.stream()
-                .filter(pid -> personaTransactionRepository.existsByPhotoId(pid))
-                .collect(Collectors.toList());
         boolean matched = !matchedPhotoIds.isEmpty();
 
         FastApiDiaryRequest faReq = FastApiDiaryRequest.builder()
