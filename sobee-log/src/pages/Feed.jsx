@@ -96,9 +96,7 @@ function FeedPost({ post, onToggleLike }) {
             {line}
           </p>
         ))}
-        {post.likes > 0 && (
-          <p className="text-xs text-gray-400 mt-2 m-0">좋아요 {post.likes}개</p>
-        )}
+        <p className="text-xs text-gray-400 mt-2 m-0">좋아요 {post.likes}개</p>
       </section>
     </article>
   )
@@ -134,19 +132,28 @@ export default function Feed() {
     fetchDiaries()
   }, [activeRoom])
 
-  const handleToggleLike = (id) => {
-    setPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== id) return post
-        const liked = !post.liked
-        return {
-          ...post,
-          liked,
-          likes: liked ? post.likes + 1 : Math.max(0, post.likes - 1),
-        }
-      }),
-    )
+  const handleToggleLike = async (id) => {
+  try {
+    const token = localStorage.getItem('token')
+    await fetch(`/api/diary/${id}/like`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  } catch (err) {
+    console.error('좋아요 실패', err)
   }
+  setPosts((prev) =>
+    prev.map((post) => {
+      if (post.id !== id) return post
+      const liked = !post.liked
+      return {
+        ...post,
+        liked,
+        likes: liked ? post.likes + 1 : Math.max(0, post.likes - 1),
+      }
+    }),
+  )
+}
 
   return (
     <main className="min-h-full bg-[#F3F4F6]">

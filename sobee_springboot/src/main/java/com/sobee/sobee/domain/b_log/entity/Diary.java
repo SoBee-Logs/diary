@@ -36,8 +36,10 @@ public class Diary {
     private LocalDateTime createdAt;
 
     // 좋아요 수 (초기값 0)
+    @Setter
     @Column(name = "likes")
     private Integer likes;
+  
 
     @PrePersist
     protected void onCreate() {
