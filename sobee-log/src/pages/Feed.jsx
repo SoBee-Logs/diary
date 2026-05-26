@@ -3,26 +3,26 @@ import RoomTabs from '../components/common/RoomTabs'
 import StatusBar from '../components/common/StatusBar'
 import { CURRENT_USER } from '../constants/rooms'
 
-// API 응답(DiaryFeedItemResponse)을 FeedPost가 사용하는 형태로 변환
 const mapDiaryToPost = (item) => ({
   id: item.diaryId,
   title: item.title || '무제',
-  // diaryLines가 비어있으면 subtitle을 한 줄로 표시
   diaryLines: item.diaryLines?.length > 0
     ? item.diaryLines
     : [item.subtitle].filter(Boolean),
   date: item.date || '',
   authorNickname: item.authorName || '익명',
-  // 개인 아바타 없음 — 추후 B팀 페르소나 이미지 합칠 때 이 값만 교체하면 됨
   avatarUrl: CURRENT_USER.avatarUrl,
   personaTitle: item.roomLabel || '',
-  imageUrl: item.imageUrl || '',
+  imageUrls: item.imageUrls?.length > 0 ? item.imageUrls : [item.imageUrl].filter(Boolean),
   liked: false,
   likes: item.likes ?? 0,
-  roomId: `room_${item.roomId}`, // RoomTabs의 id 형식(room_N)에 맞게 변환
+  roomId: `room_${item.roomId}`,
 })
 
 function FeedPost({ post, onToggleLike }) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const images = post.imageUrls || []
+
   return (
     <article className="bg-white mb-3 rounded-2xl overflow-hidden shadow-sm mx-4">
       <header className="flex items-center gap-3 px-4 py-3">
@@ -37,8 +37,36 @@ function FeedPost({ post, onToggleLike }) {
         </span>
       </header>
 
-      <figure className="m-0 w-full aspect-square bg-gray-100 relative">
-        <img src={post.imageUrl} alt="" className="w-full h-full object-cover" />
+      <figure className="m-0 w-full aspect-square bg-gray-100 relative overflow-hidden">
+        {images.length > 0 && (
+          <img src={images[currentIndex]} alt="" className="w-full h-full object-cover" />
+        )}
+
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={() => setCurrentIndex((prev) => (prev - 1 + images.length) % images.length)}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center shadow text-lg"
+            >
+              ‹
+            </button>
+            <button
+              onClick={() => setCurrentIndex((prev) => (prev + 1) % images.length)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center shadow text-lg"
+            >
+              ›
+            </button>
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
+              {images.map((_, i) => (
+                <span
+                  key={i}
+                  className={`w-1.5 h-1.5 rounded-full ${i === currentIndex ? 'bg-white' : 'bg-white/50'}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
         <button
           type="button"
           onClick={() => onToggleLike(post.id)}
@@ -77,14 +105,11 @@ function FeedPost({ post, onToggleLike }) {
 }
 
 export default function Feed() {
-  // RoomTabs가 mount 시 onChange로 첫 번째 방 ID를 설정해 줌 — null로 시작
   const [activeRoom, setActiveRoom] = useState(null)
   const [posts, setPosts] = useState([])
   const [isLoading, setIsLoading] = useState(false)
 
-  // activeRoom이 바뀔 때마다 해당 방의 일기 목록 DB 조회
   useEffect(() => {
-    // room_N 형식 검증 — RoomTabs가 설정하기 전(null 등)은 skip
     if (!activeRoom || !activeRoom.startsWith('room_')) return
 
     const groupId = activeRoom.replace('room_', '')
