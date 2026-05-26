@@ -28,8 +28,6 @@ public class DiaryController {
         return jwtUtil.getUserId(authHeader.substring(7));
     }
 
-    // POST /api/diary/generate
-    // 모임방 + 날짜 기준으로 사진 수집 → FastAPI LLM 호출 → 일기 결과 반환 (DB 저장 전)
     @PostMapping("/generate")
     public ResponseEntity<DiaryGenerateResponse> generateDiary(
             @RequestHeader("Authorization") String authHeader,
@@ -40,8 +38,6 @@ public class DiaryController {
         return ResponseEntity.ok(response);
     }
 
-    // POST /api/diary/save
-    // 사용자가 DiaryResult 화면에서 "선택하기" + "확인" 후 diary + diary_photos 저장
     @PostMapping("/save")
     public ResponseEntity<Void> saveDiary(
             @RequestHeader("Authorization") String authHeader,
@@ -52,15 +48,23 @@ public class DiaryController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    // GET /api/diary/list?groupId=xxx
-    // 특정 모임방의 일기 목록 최신순 조회 — 피드 화면 DB 연동용
     @GetMapping("/list")
     public ResponseEntity<List<DiaryFeedItemResponse>> getDiaryList(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam Long groupId
     ) {
-        extractUserId(authHeader); // 인증 확인만 수행
+        extractUserId(authHeader);
         List<DiaryFeedItemResponse> response = diaryService.getDiaryList(groupId);
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{diaryId}/like")
+    public ResponseEntity<Void> toggleLike(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long diaryId
+    ) {
+        extractUserId(authHeader);
+        diaryService.toggleLike(diaryId);
+        return ResponseEntity.ok().build();
     }
 }
