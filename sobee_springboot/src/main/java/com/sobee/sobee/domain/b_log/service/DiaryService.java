@@ -52,6 +52,8 @@ public class DiaryService {
 
         List<PhotoGroups> pgList = photoGroupsRepository.findByIdGroupId(req.getGroupId());
 
+        // 오늘 날짜 + 본인 사진 필터링 (매칭 여부 무관하게 모든 사진 포함) : 필터용
+        // → 일기는 결제가 확인된 소비 기록만을 소재로 써야 하므로 매핑 여부로 필터
         List<Photo> todayPhotos = pgList.stream()
                 .map(PhotoGroups::getPhoto)
                 .filter(photo -> photo.getUserId().equals(userId))
@@ -60,7 +62,7 @@ public class DiaryService {
                         .map(meta -> meta.getTakenAt() != null
                                 && meta.getTakenAt().toLocalDate().equals(targetDate))
                         .orElse(false))
-                .filter(photo -> personaTransactionRepository.existsByPhotoId(photo.getPhotoId()))
+                // persona_transaction 필터 제거 → 미매칭 사진도 포함
                 .collect(Collectors.toList());
 
         if (todayPhotos.isEmpty()) {
