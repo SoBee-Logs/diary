@@ -240,8 +240,10 @@ public class PhotoService {
         }
 
         // 같은 날 해당 유저의 지출 내역 조회 (없으면 매핑 불가)
+        // paymentDate 컬럼이 VARCHAR("yyyy-MM-dd")이므로 String으로 변환 후 전달
+        String takenDateStr = takenDate.format(DATE_FORMATTER);
         List<Transaction> candidates = transactionRepository
-                .findOutgoingByUserIdAndDate(userId, takenDate);
+                .findOutgoingByUserIdAndDate(userId, takenDateStr);
         if (candidates.isEmpty()) return null;
 
         Transaction best;
