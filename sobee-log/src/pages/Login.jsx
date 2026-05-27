@@ -8,7 +8,7 @@ function Login() {
 
   const handleLogin = async () => {
   try {
-    const res = await axios.post("http://localhost:8080/api/users/login", {
+    const res = await axios.post("/api/users/login", {
       email,
     });
     console.log("로그인 응답:", res.data);

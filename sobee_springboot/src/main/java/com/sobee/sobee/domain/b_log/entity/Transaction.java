@@ -2,10 +2,8 @@ package com.sobee.sobee.domain.b_log.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 
-// transactions 테이블 매핑 — 결제 내역 조회 전용 (읽기만 사용)
 @Entity
 @Table(name = "transactions")
 @Getter
@@ -16,31 +14,43 @@ public class Transaction {
     @EmbeddedId
     private TransactionId id;
 
-    // 지출 금액 (양수이면 지출)
     @Column(name = "payment_out")
     private Integer paymentOut;
 
-    // 입금 금액
     @Column(name = "payment_in")
     private Integer paymentIn;
 
-    // 결제 장소명
     @Column(name = "payment_place", length = 50)
     private String paymentPlace;
 
-    // 결제 날짜
     @Column(name = "payment_date")
-    private LocalDate paymentDate;
+    private String paymentDate;  // VARCHAR → String
 
-    // 결제 시각
     @Column(name = "payment_time")
-    private LocalTime paymentTime;
+    private String paymentTime;  // VARCHAR → String (있다면)
 
-    // 결제 카테고리
-    @Column(name = "payment_category", length = 50)
+    @Column(name = "payment_category", length = 100)
     private String paymentCategory;
 
-    // 결제 주소
-    @Column(name = "payment_address", length = 50)
+    @Column(name = "payment_address", length = 500)
     private String paymentAddress;
+
+    @Column(name = "source", length = 10)
+    private String source;
+
+    @Column(name = "source_id")
+    private Long sourceId;
+
+    @Column(name = "approval_no", length = 50)
+    private String approvalNo;
+
+    @Column(name = "card_no", length = 50)
+    private String cardNo;
+
+    @Column(name = "organization", length = 10)
+    private String organization;
+
+    @Column(name = "fetched_at")
+    private LocalDateTime fetchedAt;
+
 }

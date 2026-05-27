@@ -258,7 +258,23 @@ export default function Home() {
           </span>
         </button>
       </section>
-
+      <section className="px-5 mt-2 text-right">
+        <button
+          type="button"
+          onClick={async () => {
+            const token = localStorage.getItem("token")
+            const res = await fetch('/api/groups', {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            const groups = await res.json()
+            const roomIds = groups.map(g => g.groupId)
+            navigate('/consumption-log', { state: { selectedRooms: roomIds } })
+          }}
+          className="text-[12px] text-gray-400 underline"
+        >
+          나의 소비 로그 더보기
+        </button>
+      </section>
       <section className="px-5 pt-6 pb-24">
         <h2 className="text-[18px] font-bold text-gray-900 mb-4">피드</h2>
         {feedPreviews.length === 0 ? (
