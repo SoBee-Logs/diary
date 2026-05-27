@@ -149,27 +149,34 @@ export default function Feed() {
   }, [activeRoom])
 
   const handleToggleLike = async (id) => {
-  try {
-    const token = localStorage.getItem('token')
-    await fetch(`/api/diary/${id}/like`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-  } catch (err) {
-    console.error('좋아요 실패', err)
+    try {
+      const token = localStorage.getItem('token')
+      await fetch(`/api/diary/${id}/like`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch (err) {
+      console.error('좋아요 실패', err)
+    }
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id !== id) return post
+        const liked = !post.liked
+        return {
+          ...post,
+          liked,
+          likes: liked ? post.likes + 1 : Math.max(0, post.likes - 1),
+        }
+      }),
+    )
   }
-  setPosts((prev) =>
-    prev.map((post) => {
-      if (post.id !== id) return post
-      const liked = !post.liked
-      return {
-        ...post,
-        liked,
-        likes: liked ? post.likes + 1 : Math.max(0, post.likes - 1),
-      }
-    }),
-  )
-}
+
+  const groupedPosts = posts.reduce((acc, post) => {
+    const date = post.date || '날짜 없음'
+    if (!acc[date]) acc[date] = []
+    acc[date].push(post)
+    return acc
+  }, {})
 
   return (
     <main className="min-h-full bg-[#F3F4F6]">
@@ -184,8 +191,17 @@ export default function Feed() {
             이 모임방에 아직 일기가 없어요
           </p>
         ) : (
-          posts.map((post) => (
-            <FeedPost key={post.id} post={post} onToggleLike={handleToggleLike} />
+          Object.entries(groupedPosts).map(([date, datePosts]) => (
+            <div key={date}>
+              <div className="flex items-center gap-3 px-4 py-2">
+                <div className="flex-1 h-px bg-gray-300" />
+                <span className="text-[11px] text-gray-400 font-medium shrink-0">📅 {date}</span>
+                <div className="flex-1 h-px bg-gray-300" />
+              </div>
+              {datePosts.map((post) => (
+                <FeedPost key={post.id} post={post} onToggleLike={handleToggleLike} />
+              ))}
+            </div>
           ))
         )}
       </section>

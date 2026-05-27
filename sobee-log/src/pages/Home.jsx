@@ -67,6 +67,21 @@ export default function Home() {
   // 실제 모임방 목록 + 각 방의 최신 사진 URL
   const [feedPreviews, setFeedPreviews] = useState([])
 
+  const [currentTime, setCurrentTime] = useState('')
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date()
+      setCurrentTime(now.toLocaleString('ko-KR', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      }))
+    }
+    update()
+    const timer = setInterval(update, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
   useEffect(() => {
     const fetchFeedPreviews = async () => {
       try {
@@ -239,15 +254,15 @@ export default function Home() {
         <p className="text-center text-[14px] font-semibold text-gray-800/90 tracking-tight mt-3 mb-4 px-5">
           {CURRENT_USER.personaTitle}
         </p>
-        <button type="button" className="mx-5 w-[calc(100%-40px)] py-3.5 rounded-xl bg-[#1e73be] text-white text-[13px] font-bold shadow-md">
+        <button type="button" className="mx-5 w-[calc(100%-40px)] py-3.5 rounded-xl bg-[#1e73be] text-white text-[13px] font-bold shadow-md cursor-pointer">
           페르소나 기반 금융 상품 추천 바로가기
         </button>
       </section>
 
       <section className="px-5 -mt-2">
-        <button type="button" onClick={() => navigate('/camera')} className="w-full bg-white rounded-3xl px-5 py-5 shadow-md flex items-center gap-4 text-left">
+        <button type="button" onClick={() => navigate('/camera')} className="w-full bg-white rounded-3xl px-5 py-5 shadow-md flex items-center gap-4 text-left cursor-pointer">
           <span className="flex-1 block">
-            <span className="block text-[11px] text-gray-400 mb-1">sytem time</span>
+            <span className="block text-[11px] text-gray-400 mb-1">{currentTime}</span>
             <span className="block text-[15px] font-bold text-gray-900 leading-snug">소비가 있다면<br />찍어주세요!</span>
           </span>
           <span className="w-[68px] h-[68px] border border-gray-200 rounded-2xl flex items-center justify-center bg-white shrink-0">
@@ -270,9 +285,9 @@ export default function Home() {
             const roomIds = groups.map(g => g.groupId)
             navigate('/consumption-log', { state: { selectedRooms: roomIds } })
           }}
-          className="text-[12px] text-gray-400 underline"
+          className="text-[12px] text-gray-400 underline cursor-pointer"
         >
-          나의 소비 로그 더보기
+          나의 소비 로그
         </button>
       </section>
       <section className="px-5 pt-6 pb-24">
@@ -288,7 +303,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => navigate('/feed', { state: { roomId: item.groupId } })}
-                  className="w-full text-left p-0 border-0 bg-transparent"
+                  className="w-full text-left p-0 border-0 bg-transparent cursor-pointer"
                 >
                   <figure className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 m-0 mb-2">
                     {item.imageUrl ? (
@@ -300,11 +315,6 @@ export default function Home() {
                         <span className="text-[10px] text-gray-400">사진이 없어요</span>
                       </div>
                     )}
-                    <span className="absolute bottom-2 right-2 text-gray-300">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                      </svg>
-                    </span>
                   </figure>
                   <p className="text-[13px] font-bold text-gray-900 m-0">{item.groupName}</p>
                 </button>

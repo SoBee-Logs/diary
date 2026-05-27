@@ -33,6 +33,14 @@ export default function ConsumptionLog() {
     })
   }
 
+  const toKoreanTime = (timeStr) => {
+    if (!timeStr) return ''
+    const [hour, minute] = timeStr.split(':').map(Number)
+    const date = new Date()
+    date.setUTCHours(hour, minute, 0, 0)
+    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+  }
+
   useEffect(() => {
     const fetchMyGroups = async () => {
       try {
@@ -60,7 +68,6 @@ export default function ConsumptionLog() {
         })
         if (!res.ok) throw new Error('조회 실패')
         const data = await res.json()
-        // 최근 업로드 순 (내림차순) — 배열 역순 정렬
         setPhotos([...(data.photos ?? [])].reverse())
       } catch (err) {
         console.error(err)
@@ -72,12 +79,12 @@ export default function ConsumptionLog() {
   }, [selectedDate])
 
   const getGroupHashtags = (groupIds) => {
-  return groupIds
-    .map((gid) => {
-      const group = myGroups.find((g) => Number(g.groupId) === Number(gid))
-      return group ? `#${group.groupName}` : null
-    })
-    .filter(Boolean)
+    return groupIds
+      .map((gid) => {
+        const group = myGroups.find((g) => Number(g.groupId) === Number(gid))
+        return group ? `#${group.groupName}` : null
+      })
+      .filter(Boolean)
   }
 
   const handleDateChange = (date) => {
@@ -168,7 +175,7 @@ export default function ConsumptionLog() {
                 <li key={photo.id} className="flex gap-0 mb-6 relative items-start">
                   <div className="w-[58px] shrink-0 text-left pt-1">
                     <span className="block text-[12px] font-semibold text-gray-900 leading-tight">
-                      {photo.time}
+                      {toKoreanTime(photo.time)}
                     </span>
                     <span className="block text-[18px] mt-1">{photo.emoji}</span>
                     <span className="block text-[10px] text-[#185FA5] mt-1 leading-relaxed break-keep">
@@ -181,7 +188,6 @@ export default function ConsumptionLog() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    {/* 결제 매핑 여부 표시: 성공 시 초록 / 실패 시 회색 뱃지 */}
                     <figure className={`m-0 rounded-xl overflow-hidden aspect-[5/3] bg-gray-100 relative ${photo.mapped ? 'border-2 border-emerald-400' : 'border border-gray-200'}`}>
                       <img
                         src={photo.url}

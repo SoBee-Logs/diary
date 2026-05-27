@@ -16,6 +16,7 @@ import MyDataConnect from './pages/MyDataConnect'
 
 const routeConfig = [
   { path: '/', element: <Login />, bottomNav: false, floatingNav: false, appBar: false },
+  { path: '/login', element: <Login />, bottomNav: false, floatingNav: false, appBar: false },
   { path: '/home', element: <Home />, bottomNav: true, floatingNav: true, appBar: false },
   { path: '/home/detail', element: <HomeDetail />, bottomNav: false, floatingNav: false, appBar: true, title: '홈 상세' },
   { path: '/report', element: <Report />, bottomNav: true, floatingNav: false, appBar: true, title: '리포트' },
