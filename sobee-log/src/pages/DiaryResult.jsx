@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import StatusBar from '../components/common/StatusBar'
 import { ROOMS, SKY_BLUE } from '../constants/rooms'
@@ -12,77 +12,67 @@ export default function DiaryResult() {
       ? location.state.selectedRooms
       : ['room1', 'room2']
 
+  // ✅ 모든 useState를 early return 위에 선언
   const [roomIndex, setRoomIndex] = useState(location.state?.roomIndex ?? 0)
   const [diaries, setDiaries] = useState(() => location.state?.diaries ?? [])
   const [imageSlide, setImageSlide] = useState(0)
   const [includedRoomIds, setIncludedRoomIds] = useState([])
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [isRegenerating, setIsRegenerating] = useState(false)
 
   const diary = diaries[roomIndex]
-  // diaryLines가 null/undefined여도 안전하게 처리
   const bodyText = diary
     ? [diary.subtitle, ...(diary.diaryLines ?? [])].filter(Boolean).join('\n\n')
     : ''
 
-  // diaries가 비어있으면 일기 생성 실패 화면 표시 (카메라로 이동하지 않음)
-  if (diaries.length === 0) {
-    return (
-      <main className="flex flex-col items-center justify-center min-h-full bg-[#FAFAFA] gap-6 px-6">
-        <StatusBar />
-        <span className="text-5xl">😢</span>
-        <h2 className="text-[18px] font-bold text-gray-800 text-center m-0">일기 생성에 실패했어요</h2>
-        <p className="text-[13px] text-gray-500 text-center leading-relaxed m-0">
-          서버가 응답하지 않거나<br />오늘 사진이 없을 수 있어요.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate('/camera', { replace: true })}
-          className="px-8 py-3.5 rounded-2xl text-white text-[14px] font-bold"
-          style={{ backgroundColor: '#38BDF8' }}
-        >
-          다시 시도하기
-        </button>
-      </main>
-    )
+  // ✅ 모든 함수도 early return 위에 선언
+  const handleRegenerate = async () => {
+    if (isRegenerating) return
+    setIsRegenerating(true)
+    const token = localStorage.getItem('token')
+    const today = new Date().toISOString().split('T')[0]
+
+    try {
+      const res = await fetch('/api/diary/generate', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId: diary.roomId,
+          date: today,
+        }),
+      })
+      if (!res.ok) throw new Error('서버 오류')
+      const newDiary = await res.json()
+
+      setDiaries((prev) =>
+        prev.map((d, i) => (i === roomIndex ? newDiary : d))
+      )
+      setImageSlide(0)
+    } catch (err) {
+      alert('일기 재생성에 실패했어요. 다시 시도해주세요.')
+      console.error('재생성 실패', err)
+    } finally {
+      setIsRegenerating(false)
+    }
   }
 
-  // 일기 재생성 버튼 
-  const [isRegenerating, setIsRegenerating] = useState(false)
+  const finishRoom = (include) => {
+    const roomId = selectedRooms[roomIndex]
+    const nextIncluded = include ? [...includedRoomIds, roomId] : includedRoomIds
 
-const handleRegenerate = async () => {
-  if (isRegenerating) return  // 중복 클릭 방지
-  setIsRegenerating(true)
-  const token = localStorage.getItem('token')
-  const today = new Date().toISOString().split('T')[0]
-
-  try {
-    const res = await fetch('/api/diary/generate', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        groupId: diary.roomId,
-        date: today,
-      }),
-    })
-    if (!res.ok) throw new Error('서버 오류')
-    const newDiary = await res.json()
-
-    setDiaries((prev) =>
-      prev.map((d, i) => (i === roomIndex ? newDiary : d))
-    )
-    setImageSlide(0)
-  } catch (err) {
-    alert('일기 재생성에 실패했어요. 다시 시도해주세요.')
-    console.error('재생성 실패', err)
-  } finally {
-    setIsRegenerating(false)
+    if (roomIndex < selectedRooms.length - 1) {
+      setIncludedRoomIds(nextIncluded)
+      setRoomIndex((i) => i + 1)
+      setImageSlide(0)
+    } else {
+      setIncludedRoomIds(nextIncluded)
+      setShowConfirmModal(true)
+    }
   }
-}
 
-  // ROOMS 상수 대신 diaries의 roomLabel 사용 — 실제 DB groupId(숫자)와 매핑 가능
   const selectedRoomLabels = includedRoomIds
     .map((id) => diaries.find((d) => d.roomId === id)?.roomLabel ?? null)
     .filter(Boolean)
@@ -96,11 +86,9 @@ const handleRegenerate = async () => {
     const toUpload = diaries.filter((d) => includedRoomIds.includes(d.roomId))
     setShowConfirmModal(false)
 
-    // 선택된 일기를 diary + diary_photos 테이블에 저장
     const token = localStorage.getItem('token')
     for (const d of toUpload) {
       try {
-        // diary_content: JSON 직렬화 (VARCHAR 200 이내)
         const diaryContent = JSON.stringify({
           title:    d.title,
           subtitle: d.subtitle,
@@ -126,7 +114,28 @@ const handleRegenerate = async () => {
     navigate('/feed', { state: { newDiaries: toUpload } })
   }
 
-  // 다중 사진 슬라이드 — imageUrls 배열 우선, 없으면 imageUrl 단일 사용
+  // ✅ early return은 훅/함수 선언 다음에
+  if (diaries.length === 0) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-full bg-[#FAFAFA] gap-6 px-6">
+        <StatusBar />
+        <span className="text-5xl">😢</span>
+        <h2 className="text-[18px] font-bold text-gray-800 text-center m-0">일기 생성에 실패했어요</h2>
+        <p className="text-[13px] text-gray-500 text-center leading-relaxed m-0">
+          서버가 응답하지 않거나<br />오늘 사진이 없을 수 있어요.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/camera', { replace: true })}
+          className="px-8 py-3.5 rounded-2xl text-white text-[14px] font-bold"
+          style={{ backgroundColor: '#38BDF8' }}
+        >
+          다시 시도하기
+        </button>
+      </main>
+    )
+  }
+
   const slides = diary.imageUrls?.length > 0
     ? diary.imageUrls
     : [diary.imageUrl].filter(Boolean)
@@ -161,7 +170,7 @@ const handleRegenerate = async () => {
                     : done
                       ? included
                         ? 'border-green-400 text-green-500 bg-green-50'
-                        : 'border-gray-300 text-gray-400 bg-gray-100'
+                        : 'border-red-400 text-red-400 bg-red-50'
                       : 'border-gray-200 text-gray-400 bg-gray-50'
                 }`}
               >
@@ -190,7 +199,6 @@ const handleRegenerate = async () => {
         >
           <img src={slides[imageSlide]} alt="" className="w-full aspect-[4/3] object-cover" />
 
-          {/* 현재 슬라이드 사진이 결제 매핑된 경우 💳 배지 표시 */}
           {diary.matchedPhotoIds?.includes(diary.photoIds?.[imageSlide]) && (
             <span className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
               💳 매핑됨
@@ -275,7 +283,6 @@ const handleRegenerate = async () => {
         </button>
       </footer>
 
-      {/* 확인 모달 */}
       {showConfirmModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-8"
