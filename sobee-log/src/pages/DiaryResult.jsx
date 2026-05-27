@@ -47,48 +47,40 @@ export default function DiaryResult() {
   }
 
   // 일기 재생성 버튼 
-  const handleRegenerate = async () => {
-    const token = localStorage.getItem('token')
-    const today = new Date().toISOString().split('T')[0] // yyyy-MM-dd
-  
-    try {
-      const res = await fetch('/api/diary/generate', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          groupId: diary.roomId,
-          date: today,
-        }),
-      })
-      if (!res.ok) return
-      const newDiary = await res.json()
-  
-      // 현재 방 일기만 교체
-      setDiaries((prev) =>
-        prev.map((d, i) => (i === roomIndex ? newDiary : d))
-      )
-      setImageSlide(0)
-    } catch (err) {
-      console.error('재생성 실패', err)
-    }
-  }
+  const [isRegenerating, setIsRegenerating] = useState(false)
 
-  const finishRoom = (include) => {
-    const roomId = selectedRooms[roomIndex]
-    const nextIncluded = include ? [...includedRoomIds, roomId] : includedRoomIds
+const handleRegenerate = async () => {
+  if (isRegenerating) return  // 중복 클릭 방지
+  setIsRegenerating(true)
+  const token = localStorage.getItem('token')
+  const today = new Date().toISOString().split('T')[0]
 
-    if (roomIndex < selectedRooms.length - 1) {
-      setIncludedRoomIds(nextIncluded)
-      setRoomIndex((i) => i + 1)
-      setImageSlide(0)
-    } else {
-      setIncludedRoomIds(nextIncluded)
-      setShowConfirmModal(true)
-    }
+  try {
+    const res = await fetch('/api/diary/generate', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        groupId: diary.roomId,
+        date: today,
+      }),
+    })
+    if (!res.ok) throw new Error('서버 오류')
+    const newDiary = await res.json()
+
+    setDiaries((prev) =>
+      prev.map((d, i) => (i === roomIndex ? newDiary : d))
+    )
+    setImageSlide(0)
+  } catch (err) {
+    alert('일기 재생성에 실패했어요. 다시 시도해주세요.')
+    console.error('재생성 실패', err)
+  } finally {
+    setIsRegenerating(false)
   }
+}
 
   // ROOMS 상수 대신 diaries의 roomLabel 사용 — 실제 DB groupId(숫자)와 매핑 가능
   const selectedRoomLabels = includedRoomIds
@@ -239,10 +231,15 @@ export default function DiaryResult() {
             <button
               type="button"
               onClick={handleRegenerate}
-              className="w-8 h-8 shrink-0 rounded-full border border-gray-200 flex items-center justify-center text-gray-500"
+              disabled={isRegenerating}
+              className="w-8 h-8 shrink-0 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 disabled:opacity-40"
               aria-label="재생성"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="18" height="18" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" strokeWidth="2"
+                className={isRegenerating ? 'animate-spin' : ''}
+              >
                 <path d="M1 4v6h6M23 20v-6h-6" />
                 <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15" />
               </svg>
