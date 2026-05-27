@@ -17,6 +17,9 @@ const mapDiaryToPost = (item) => ({
   liked: false,
   likes: item.likes ?? 0,
   roomId: `room_${item.roomId}`,
+  // 매핑 배지용 — 슬라이드 인덱스와 1:1 대응
+  photoIds: item.photoIds || [],
+  matchedPhotoIds: item.matchedPhotoIds || [],
 })
 
 function FeedPost({ post, onToggleLike }) {
@@ -40,6 +43,19 @@ function FeedPost({ post, onToggleLike }) {
       <figure className="m-0 w-full aspect-square bg-gray-100 relative overflow-hidden">
         {images.length > 0 && (
           <img src={images[currentIndex]} alt="" className="w-full h-full object-cover" />
+        )}
+
+        {/* 현재 슬라이드 사진의 결제 매핑 여부 배지 */}
+        {post.photoIds?.[currentIndex] != null && (
+          post.matchedPhotoIds?.includes(post.photoIds[currentIndex]) ? (
+            <span className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+              💳 매핑됨
+            </span>
+          ) : (
+            <span className="absolute top-2 left-2 flex items-center gap-1 bg-gray-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+              🔍 미매핑
+            </span>
+          )
         )}
 
         {images.length > 1 && (

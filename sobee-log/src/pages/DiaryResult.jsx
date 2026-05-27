@@ -171,11 +171,17 @@ export default function DiaryResult() {
         >
           <img src={slides[imageSlide]} alt="" className="w-full aspect-[4/3] object-cover" />
 
-          {/* 현재 슬라이드 사진이 결제 매핑된 경우 💳 배지 표시 */}
-          {diary.matchedPhotoIds?.includes(diary.photoIds?.[imageSlide]) && (
-            <span className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-              💳 매핑됨
-            </span>
+          {/* 현재 슬라이드 사진 결제 매핑 여부 배지 — 매핑됨/미매핑 구분 표시 */}
+          {diary.photoIds?.[imageSlide] != null && (
+            diary.matchedPhotoIds?.includes(diary.photoIds[imageSlide]) ? (
+              <span className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                💳 매핑됨
+              </span>
+            ) : (
+              <span className="absolute top-2 left-2 flex items-center gap-1 bg-gray-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                🔍 미매핑
+              </span>
+            )
           )}
 
           <button
