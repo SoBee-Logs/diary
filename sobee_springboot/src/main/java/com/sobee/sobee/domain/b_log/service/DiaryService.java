@@ -189,11 +189,20 @@ public class DiaryService {
 
             List<DiaryPhoto> diaryPhotos = diaryPhotoRepository
                     .findByIdDiaryId(diary.getDiaryId());
-            List<String> imageUrls = diaryPhotos.stream()
-                    .map(dp -> photoRepository.findById(dp.getId().getPhotoId())
+
+            // 슬라이드 인덱스 순서 유지 — photoIds[i] ↔ imageUrls[i] 1:1 대응
+            List<Long> dpPhotoIds = diaryPhotos.stream()
+                    .map(dp -> dp.getId().getPhotoId())
+                    .collect(Collectors.toList());
+            List<String> imageUrls = dpPhotoIds.stream()
+                    .map(pid -> photoRepository.findById(pid)
                             .map(Photo::getImageUrl)
                             .orElse(null))
                     .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            // persona_transaction 존재 여부로 매핑된 사진 ID 분류 (배지 표시용)
+            List<Long> dpMatchedPhotoIds = dpPhotoIds.stream()
+                    .filter(pid -> personaTransactionRepository.existsByPhotoId(pid))
                     .collect(Collectors.toList());
 
             String title    = "";
@@ -226,6 +235,8 @@ public class DiaryService {
                     .roomId(diary.getGroupId())
                     .roomLabel(group != null ? group.getGroupName() : "")
                     .likes(diary.getLikes() != null ? diary.getLikes() : 0)
+                    .photoIds(dpPhotoIds)
+                    .matchedPhotoIds(dpMatchedPhotoIds)
                     .build();
 
         }).collect(Collectors.toList());

@@ -23,4 +23,6 @@ public class DiaryFeedItemResponse {
     private Long roomId;             // 모임방 ID
     private String roomLabel;        // 모임방 이름
     private Integer likes;           // 좋아요 수 (diary.likes)
+    private List<Long> photoIds;          // 슬라이드 인덱스와 1:1 대응하는 사진 ID 목록 (배지 표시용)
+    private List<Long> matchedPhotoIds;   // 결제 매핑된 사진 ID 목록 (💳/🔍 배지 구분용)
 }
