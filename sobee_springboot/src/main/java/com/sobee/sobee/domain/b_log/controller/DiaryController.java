@@ -34,8 +34,12 @@ public class DiaryController {
             @RequestBody DiaryGenerateRequest request
     ) {
         Long userId = extractUserId(authHeader);
-        DiaryGenerateResponse response = diaryService.generateDiary(request, userId);
-        return ResponseEntity.ok(response);
+        try {
+            DiaryGenerateResponse response = diaryService.generateDiary(request, userId);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();  // 400
+        }
     }
 
     @PostMapping("/save")

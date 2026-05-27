@@ -7,14 +7,12 @@ export default function DiaryResult() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const selectedRooms =
-    location.state?.selectedRooms?.length > 0
-      ? location.state.selectedRooms
-      : ['room1', 'room2']
+  // diaries 기준으로 selectedRooms 재구성 — 스킵된 방 제외
+  const diariesFromState = location.state?.diaries ?? []
+  const selectedRooms = diariesFromState.map((d) => d.roomId)
 
-  // ✅ 모든 useState를 early return 위에 선언
-  const [roomIndex, setRoomIndex] = useState(location.state?.roomIndex ?? 0)
-  const [diaries, setDiaries] = useState(() => location.state?.diaries ?? [])
+  const [roomIndex, setRoomIndex] = useState(0)
+  const [diaries, setDiaries] = useState(diariesFromState)
   const [imageSlide, setImageSlide] = useState(0)
   const [includedRoomIds, setIncludedRoomIds] = useState([])
   const [showConfirmModal, setShowConfirmModal] = useState(false)
@@ -25,7 +23,6 @@ export default function DiaryResult() {
     ? [diary.subtitle, ...(diary.diaryLines ?? [])].filter(Boolean).join('\n\n')
     : ''
 
-  // ✅ 모든 함수도 early return 위에 선언
   const handleRegenerate = async () => {
     if (isRegenerating) return
     setIsRegenerating(true)
@@ -114,7 +111,7 @@ export default function DiaryResult() {
     navigate('/feed', { state: { newDiaries: toUpload } })
   }
 
-  // ✅ early return은 훅/함수 선언 다음에
+  // early return — diaries 빈 배열이면 실패 화면
   if (diaries.length === 0) {
     return (
       <main className="flex flex-col items-center justify-center min-h-full bg-[#FAFAFA] gap-6 px-6">
@@ -138,7 +135,11 @@ export default function DiaryResult() {
 
   const slides = diary.imageUrls?.length > 0
     ? diary.imageUrls
-    : [diary.imageUrl].filter(Boolean)
+    : diary.imageUrl
+      ? [diary.imageUrl]
+      : []
+
+  const hasPhotos = slides.length > 0
 
   return (
     <main className="flex flex-col min-h-full bg-[#FAFAFA] relative">
@@ -197,40 +198,49 @@ export default function DiaryResult() {
           className="relative m-0 mb-4 rounded-2xl overflow-hidden border-[5px] bg-white"
           style={{ borderColor: SKY_BLUE }}
         >
-          <img src={slides[imageSlide]} alt="" className="w-full aspect-[4/3] object-cover" />
+          {hasPhotos ? (
+            <>
+              <img src={slides[imageSlide]} alt="" className="w-full aspect-[4/3] object-cover" />
 
-          {diary.matchedPhotoIds?.includes(diary.photoIds?.[imageSlide]) && (
-            <span className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-              💳 매핑됨
-            </span>
+              {diary.matchedPhotoIds?.includes(diary.photoIds?.[imageSlide]) && (
+                <span className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                  💳 매핑됨
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setImageSlide((s) => Math.max(0, s - 1))}
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center text-gray-600 shadow"
+                aria-label="이전"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => setImageSlide((s) => Math.min(slides.length - 1, s + 1))}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center text-gray-600 shadow"
+                aria-label="다음"
+              >
+                ›
+              </button>
+              <span className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+                {slides.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`w-2 h-2 rounded-full ${
+                      i === imageSlide ? 'bg-gray-900' : 'bg-gray-300'
+                    }`}
+                  />
+                ))}
+              </span>
+            </>
+          ) : (
+            <div className="w-full aspect-[4/3] flex flex-col items-center justify-center bg-gray-50 gap-3">
+              <span className="text-4xl">📷</span>
+              <p className="text-[13px] text-gray-400 m-0">이 모임방에 등록된 사진이 없어요</p>
+            </div>
           )}
-
-          <button
-            type="button"
-            onClick={() => setImageSlide((s) => Math.max(0, s - 1))}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center text-gray-600 shadow"
-            aria-label="이전"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            onClick={() => setImageSlide((s) => Math.min(slides.length - 1, s + 1))}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center text-gray-600 shadow"
-            aria-label="다음"
-          >
-            ›
-          </button>
-          <span className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-            {slides.map((_, i) => (
-              <span
-                key={i}
-                className={`w-2 h-2 rounded-full ${
-                  i === imageSlide ? 'bg-gray-900' : 'bg-gray-300'
-                }`}
-              />
-            ))}
-          </span>
         </figure>
 
         <article className="bg-white rounded-2xl p-5 shadow-md text-left">

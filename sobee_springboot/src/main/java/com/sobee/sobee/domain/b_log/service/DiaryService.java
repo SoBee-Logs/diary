@@ -59,6 +59,11 @@ public class DiaryService {
                 .filter(photo -> photo.getUserId().equals(userId))
                 .collect(Collectors.toList());
 
+        // 사진 없으면 일기 생성 차단
+                if (todayPhotos.isEmpty()) {
+                    throw new IllegalArgumentException("이 모임방에 등록된 사진이 없어 일기를 생성할 수 없습니다.");
+                }
+
         // 매핑된 사진만 따로 필터링 (LLM 일기 생성용)
         List<Photo> matchedPhotos = todayPhotos.stream()
                 .filter(photo -> personaTransactionRepository.existsByPhotoId(photo.getPhotoId()))
