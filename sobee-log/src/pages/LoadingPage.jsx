@@ -70,19 +70,20 @@ export default function LoadingPage() {
               mood:    mood,
             }),
           })
-          if (!res.ok) continue
-          const data = await res.json()
-          diaries.push({
-            title:      data.title,
-            subtitle:   data.subtitle,
-            diaryLines: data.diaryLines,
-            tags:       data.tags,
-            roomId:     data.roomId,
-            roomLabel:  data.roomLabel,
-            imageUrls:  data.imageUrls,
-            photoIds:   data.photoIds,
-            imageUrl:   data.imageUrls?.[0] ?? imageUrl,
-          })
+          if (res.ok) {
+            const data = await res.json()
+            diaries.push({
+              title:      data.title,
+              subtitle:   data.subtitle,
+              diaryLines: data.diaryLines,
+              tags:       data.tags,
+              roomId:     data.roomId,
+              roomLabel:  data.roomLabel,
+              imageUrls:  data.imageUrls,
+              photoIds:   data.photoIds,
+              imageUrl:   data.imageUrls?.[0] ?? imageUrl,
+            })
+          }
         } catch {
           // 특정 방 일기 생성 실패 시 해당 방만 skip
         }
@@ -102,7 +103,7 @@ export default function LoadingPage() {
 
   // 마퀴에 표시할 사진 — 유저 사진 우선, 없으면 imageUrl fallback
   const marqueePhotos = userPhotos.length > 0
-    ? [...userPhotos, ...userPhotos] // 두 번 반복해서 끊기지 않게
+    ? [...userPhotos, ...userPhotos]
     : imageUrl
       ? [imageUrl, imageUrl, imageUrl, imageUrl]
       : []

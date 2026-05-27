@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import StatusBar from '../components/common/StatusBar'
 import { ROOMS, SKY_BLUE } from '../constants/rooms'
@@ -7,47 +7,54 @@ export default function DiaryResult() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const selectedRooms =
-    location.state?.selectedRooms?.length > 0
-      ? location.state.selectedRooms
-      : ['room1', 'room2']
+  // diaries 기준으로 selectedRooms 재구성 — 스킵된 방 제외
+  const diariesFromState = location.state?.diaries ?? []
+  const selectedRooms = diariesFromState.map((d) => d.roomId)
 
-  const [roomIndex, setRoomIndex] = useState(location.state?.roomIndex ?? 0)
-  const [diaries, setDiaries] = useState(() => location.state?.diaries ?? [])
+  const [roomIndex, setRoomIndex] = useState(0)
+  const [diaries, setDiaries] = useState(diariesFromState)
   const [imageSlide, setImageSlide] = useState(0)
   const [includedRoomIds, setIncludedRoomIds] = useState([])
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [isRegenerating, setIsRegenerating] = useState(false)
 
   const diary = diaries[roomIndex]
-  // diaryLines가 null/undefined여도 안전하게 처리
   const bodyText = diary
     ? [diary.subtitle, ...(diary.diaryLines ?? [])].filter(Boolean).join('\n\n')
     : ''
 
-  // diaries가 비어있으면 일기 생성 실패 화면 표시 (카메라로 이동하지 않음)
-  if (diaries.length === 0) {
-    return (
-      <main className="flex flex-col items-center justify-center min-h-full bg-[#FAFAFA] gap-6 px-6">
-        <StatusBar />
-        <span className="text-5xl">😢</span>
-        <h2 className="text-[18px] font-bold text-gray-800 text-center m-0">일기 생성에 실패했어요</h2>
-        <p className="text-[13px] text-gray-500 text-center leading-relaxed m-0">
-          서버가 응답하지 않거나<br />오늘 사진이 없을 수 있어요.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate('/camera', { replace: true })}
-          className="px-8 py-3.5 rounded-2xl text-white text-[14px] font-bold"
-          style={{ backgroundColor: '#38BDF8' }}
-        >
-          다시 시도하기
-        </button>
-      </main>
-    )
-  }
+  const handleRegenerate = async () => {
+    if (isRegenerating) return
+    setIsRegenerating(true)
+    const token = localStorage.getItem('token')
+    const today = new Date().toISOString().split('T')[0]
 
-  // 재생성 버튼 — 현재 버전에서는 비활성 (추후 구현 예정)
-  const handleRegenerate = () => {}
+    try {
+      const res = await fetch('/api/diary/generate', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId: diary.roomId,
+          date: today,
+        }),
+      })
+      if (!res.ok) throw new Error('서버 오류')
+      const newDiary = await res.json()
+
+      setDiaries((prev) =>
+        prev.map((d, i) => (i === roomIndex ? newDiary : d))
+      )
+      setImageSlide(0)
+    } catch (err) {
+      alert('일기 재생성에 실패했어요. 다시 시도해주세요.')
+      console.error('재생성 실패', err)
+    } finally {
+      setIsRegenerating(false)
+    }
+  }
 
   const finishRoom = (include) => {
     const roomId = selectedRooms[roomIndex]
@@ -63,7 +70,6 @@ export default function DiaryResult() {
     }
   }
 
-  // ROOMS 상수 대신 diaries의 roomLabel 사용 — 실제 DB groupId(숫자)와 매핑 가능
   const selectedRoomLabels = includedRoomIds
     .map((id) => diaries.find((d) => d.roomId === id)?.roomLabel ?? null)
     .filter(Boolean)
@@ -77,11 +83,9 @@ export default function DiaryResult() {
     const toUpload = diaries.filter((d) => includedRoomIds.includes(d.roomId))
     setShowConfirmModal(false)
 
-    // 선택된 일기를 diary + diary_photos 테이블에 저장
     const token = localStorage.getItem('token')
     for (const d of toUpload) {
       try {
-        // diary_content: JSON 직렬화 (VARCHAR 200 이내)
         const diaryContent = JSON.stringify({
           title:    d.title,
           subtitle: d.subtitle,
@@ -107,10 +111,35 @@ export default function DiaryResult() {
     navigate('/feed', { state: { newDiaries: toUpload } })
   }
 
-  // 다중 사진 슬라이드 — imageUrls 배열 우선, 없으면 imageUrl 단일 사용
+  // early return — diaries 빈 배열이면 실패 화면
+  if (diaries.length === 0) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-full bg-[#FAFAFA] gap-6 px-6">
+        <StatusBar />
+        <span className="text-5xl">😢</span>
+        <h2 className="text-[18px] font-bold text-gray-800 text-center m-0">일기 생성에 실패했어요</h2>
+        <p className="text-[13px] text-gray-500 text-center leading-relaxed m-0">
+          서버가 응답하지 않거나<br />오늘 사진이 없을 수 있어요.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/camera', { replace: true })}
+          className="px-8 py-3.5 rounded-2xl text-white text-[14px] font-bold"
+          style={{ backgroundColor: '#38BDF8' }}
+        >
+          다시 시도하기
+        </button>
+      </main>
+    )
+  }
+
   const slides = diary.imageUrls?.length > 0
     ? diary.imageUrls
-    : [diary.imageUrl].filter(Boolean)
+    : diary.imageUrl
+      ? [diary.imageUrl]
+      : []
+
+  const hasPhotos = slides.length > 0
 
   return (
     <main className="flex flex-col min-h-full bg-[#FAFAFA] relative">
@@ -142,7 +171,7 @@ export default function DiaryResult() {
                     : done
                       ? included
                         ? 'border-green-400 text-green-500 bg-green-50'
-                        : 'border-gray-300 text-gray-400 bg-gray-100'
+                        : 'border-red-400 text-red-400 bg-red-50'
                       : 'border-gray-200 text-gray-400 bg-gray-50'
                 }`}
               >
@@ -169,41 +198,49 @@ export default function DiaryResult() {
           className="relative m-0 mb-4 rounded-2xl overflow-hidden border-[5px] bg-white"
           style={{ borderColor: SKY_BLUE }}
         >
-          <img src={slides[imageSlide]} alt="" className="w-full aspect-[4/3] object-cover" />
+          {hasPhotos ? (
+            <>
+              <img src={slides[imageSlide]} alt="" className="w-full aspect-[4/3] object-cover" />
 
-          {/* 현재 슬라이드 사진이 결제 매핑된 경우 💳 배지 표시 */}
-          {diary.matchedPhotoIds?.includes(diary.photoIds?.[imageSlide]) && (
-            <span className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-              💳 매핑됨
-            </span>
+              {diary.matchedPhotoIds?.includes(diary.photoIds?.[imageSlide]) && (
+                <span className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                  💳 매핑됨
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setImageSlide((s) => Math.max(0, s - 1))}
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center text-gray-600 shadow"
+                aria-label="이전"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => setImageSlide((s) => Math.min(slides.length - 1, s + 1))}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center text-gray-600 shadow"
+                aria-label="다음"
+              >
+                ›
+              </button>
+              <span className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+                {slides.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`w-2 h-2 rounded-full ${
+                      i === imageSlide ? 'bg-gray-900' : 'bg-gray-300'
+                    }`}
+                  />
+                ))}
+              </span>
+            </>
+          ) : (
+            <div className="w-full aspect-[4/3] flex flex-col items-center justify-center bg-gray-50 gap-3">
+              <span className="text-4xl">📷</span>
+              <p className="text-[13px] text-gray-400 m-0">이 모임방에 등록된 사진이 없어요</p>
+            </div>
           )}
-
-          <button
-            type="button"
-            onClick={() => setImageSlide((s) => Math.max(0, s - 1))}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center text-gray-600 shadow"
-            aria-label="이전"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            onClick={() => setImageSlide((s) => Math.min(slides.length - 1, s + 1))}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center text-gray-600 shadow"
-            aria-label="다음"
-          >
-            ›
-          </button>
-          <span className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-            {slides.map((_, i) => (
-              <span
-                key={i}
-                className={`w-2 h-2 rounded-full ${
-                  i === imageSlide ? 'bg-gray-900' : 'bg-gray-300'
-                }`}
-              />
-            ))}
-          </span>
         </figure>
 
         <article className="bg-white rounded-2xl p-5 shadow-md text-left">
@@ -212,10 +249,15 @@ export default function DiaryResult() {
             <button
               type="button"
               onClick={handleRegenerate}
-              className="w-8 h-8 shrink-0 rounded-full border border-gray-200 flex items-center justify-center text-gray-500"
+              disabled={isRegenerating}
+              className="w-8 h-8 shrink-0 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 disabled:opacity-40"
               aria-label="재생성"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="18" height="18" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" strokeWidth="2"
+                className={isRegenerating ? 'animate-spin' : ''}
+              >
                 <path d="M1 4v6h6M23 20v-6h-6" />
                 <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15" />
               </svg>
@@ -251,7 +293,6 @@ export default function DiaryResult() {
         </button>
       </footer>
 
-      {/* 확인 모달 */}
       {showConfirmModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-8"
